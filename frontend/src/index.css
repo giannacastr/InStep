@@ -54,6 +54,88 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Scrubber with colored segment background - transparent track, visible thumb */
+.video-scrubber {
+  position: relative;
+  height: 12px;
+  width: 100%;
+}
+.video-scrubber .scrubber-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  border-radius: 16px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.video-scrubber input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.video-scrubber input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 32px;
+}
+.video-scrubber input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 16px;
+  background: #000;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.video-scrubber input[type="range"]::-moz-range-track {
+  background: transparent;
+  height: 32px;
+}
+/* Video comparison layout: videos left, feedback right; stacks on small screens */
+.video-comparison-layout {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.video-comparison-main {
+  flex: 1 1 400px;
+  min-width: 0;
+}
+.video-comparison-feedback {
+  flex: 0 0 320px;
+  min-width: 280px;
+  padding: 16px;
+}
+@media (max-width: 768px) {
+  .video-comparison-layout {
+    flex-direction: column;
+  }
+  .video-comparison-main {
+    flex: 1 1 auto;
+  }
+  .video-comparison-feedback {
+    flex: 1 1 auto;
+    min-width: 100%;
+    border-top: 1px solid #e5e7eb;
+  }
+}
+
+.video-scrubber input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 32px;
+  background: #000;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  margin-top: 4px;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
