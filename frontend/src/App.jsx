@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './App.css';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import UploadScreen from './screens/UploadScreen';
 import LoadingScreen from './screens/LoadingScreen';
@@ -35,13 +36,13 @@ function App() {
   };
 
   return (
-    <>
+    <div className="app-container">
       {currentScreen === 'upload' && <UploadScreen onAnalyze={handleAnalyze} />}
       {currentScreen === 'loading' && <LoadingScreen />}
       {currentScreen === 'results' && (
         <ResultsScreen data={uploadResult} onTryAgain={handleTryAgain} />
       )}
-    </>
+    </div>
   );
 }
 

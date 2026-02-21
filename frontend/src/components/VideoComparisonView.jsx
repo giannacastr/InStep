@@ -27,13 +27,13 @@ function buildSegments(moves, duration) {
     const start = move.startSec;
     const end = i < sorted.length - 1 ? sorted[i + 1].startSec : duration;
     if (start > prevEnd) {
-      segments.push({ start: prevEnd, end: start, move: null, color: '#e5e7eb' });
+      segments.push({ start: prevEnd, end: start, move: null, color: 'var(--color-light)' });
     }
     segments.push({ start, end, move, color: move.match ? '#22c55e' : '#ef4444' });
     prevEnd = end;
   }
   if (prevEnd < duration) {
-    segments.push({ start: prevEnd, end: duration, move: null, color: '#e5e7eb' });
+    segments.push({ start: prevEnd, end: duration, move: null, color: 'var(--color-light)' });
   }
   return segments;
 }
@@ -119,9 +119,10 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
       className="video-comparison-layout"
       style={{
         marginBottom: '32px',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
+        border: '2px solid var(--color-purple)',
+        borderRadius: '12px',
         overflow: 'hidden',
+        backgroundColor: 'var(--color-light)',
       }}
     >
       {/* Left: videos + scrubber */}
@@ -131,15 +132,15 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '0',
-            backgroundColor: '#000',
+            backgroundColor: 'var(--color-dark)',
           }}
         >
         <div>
           <div
             style={{
               padding: '8px 12px',
-              backgroundColor: '#333',
-              color: '#fff',
+              backgroundColor: 'var(--color-dark)',
+              color: 'var(--color-light)',
               fontSize: '14px',
               fontWeight: 600,
             }}
@@ -159,8 +160,8 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
           <div
             style={{
               padding: '8px 12px',
-              backgroundColor: '#333',
-              color: '#fff',
+              backgroundColor: 'var(--color-dark)',
+              color: 'var(--color-light)',
               fontSize: '14px',
               fontWeight: 600,
             }}
@@ -182,7 +183,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
         <div
           style={{
             padding: '12px 16px',
-            backgroundColor: '#f5f5f5',
+            backgroundColor: 'var(--color-light)',
           }}
         >
           {/* Colored segments as scrubber background */}
@@ -201,7 +202,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
                   />
                 ))
               ) : (
-                <div style={{ width: '100%', backgroundColor: '#e5e7eb' }} />
+                <div style={{ width: '100%', backgroundColor: 'var(--color-light)' }} />
               )}
             </div>
             <input
@@ -219,7 +220,8 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
               justifyContent: 'space-between',
               marginTop: '4px',
               fontSize: '12px',
-              color: '#666',
+              color: 'var(--color-dark)',
+              opacity: 0.7,
             }}
           >
             <span>{formatTime(currentTime)}</span>
@@ -236,8 +238,9 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             style={{
               padding: '16px',
               marginBottom: '16px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '8px',
+              backgroundColor: 'var(--color-gold)',
+              borderRadius: '12px',
+              color: 'var(--color-dark)',
             }}
           >
             <strong>Overall score: {overallScore}%</strong>
@@ -247,7 +250,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
           <MoveCard move={currentMove} />
         )}
         {!currentMove && (
-          <p style={{ color: '#888', fontSize: '14px', margin: 0 }}>
+          <p style={{ color: 'var(--color-dark)', opacity: 0.6, fontSize: '14px', margin: 0 }}>
             Scrub to a colored section to see feedback
           </p>
         )}
