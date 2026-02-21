@@ -23,6 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 
+# Python / Backend
 venv/
+*.pyc
+.env
+__pycache__/
+
+# Node / Frontend
 node_modules/
+dist/
 .DS_Store
