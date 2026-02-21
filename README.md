@@ -47,6 +47,15 @@ The frontend runs at `http://localhost:5173` (or the port Vite shows).
 
 ---
 
+## Command Quick Reference
+
+| Command | Run from folder |
+|--------|------------------|
+| `pip install -r requirements.txt`, `uvicorn main:app --reload --host 127.0.0.1 --port 8000` | `backend/` |
+| `npm install`, `npm run dev` | `frontend/` |
+
+---
+
 ## Usage
 
 1. Open the app in your browser.
