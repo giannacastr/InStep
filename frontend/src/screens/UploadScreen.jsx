@@ -33,11 +33,11 @@ export default function UploadScreen({ onAnalyze }) {
   };
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '40px', fontFamily: 'sans-serif' }}>
-      <h1>InStep</h1>
-      <p>{status}</p>
+    <div style={{ textAlign: 'center', marginTop: '40px' }}>
+      <h1 style={{ color: 'var(--color-dark)', marginBottom: '8px' }}>InStep</h1>
+      <p style={{ color: 'var(--color-dark)', opacity: 0.85 }}>{status}</p>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', padding: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '24px', flexWrap: 'wrap' }}>
         <VideoUploadCard
           title="Reference Video"
           file={refFile}
@@ -50,10 +50,7 @@ export default function UploadScreen({ onAnalyze }) {
         />
       </div>
 
-      <button
-        onClick={handleUpload}
-        style={{ padding: '10px 30px', cursor: 'pointer', backgroundColor: '#000', color: '#fff', border: 'none' }}
-      >
+      <button onClick={handleUpload} className="cta-button">
         Analyze Move-by-Move
       </button>
     </div>

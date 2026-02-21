@@ -8,9 +8,9 @@ export default function ResultsScreen({ data, onTryAgain }) {
   const { moves = [], overallScore } = analysis;
 
   return (
-    <div style={{ maxWidth: '900px', margin: '40px auto', padding: '0 20px', fontFamily: 'sans-serif' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '8px' }}>InStep</h1>
-      <p style={{ textAlign: 'center', color: '#666', marginBottom: '24px' }}>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 24px' }}>
+      <h1 style={{ textAlign: 'center', marginBottom: '8px', color: 'var(--color-dark)' }}>InStep</h1>
+      <p style={{ textAlign: 'center', color: 'var(--color-dark)', opacity: 0.8, marginBottom: '24px' }}>
         Move-by-move analysis
       </p>
 
@@ -25,18 +25,7 @@ export default function ResultsScreen({ data, onTryAgain }) {
 
       {onTryAgain && (
         <div style={{ textAlign: 'center', marginTop: '32px' }}>
-          <button
-            onClick={onTryAgain}
-            style={{
-              padding: '10px 24px',
-              cursor: 'pointer',
-              backgroundColor: '#000',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-            }}
-          >
+          <button onClick={onTryAgain} className="cta-button">
             Upload New Videos
           </button>
         </div>
