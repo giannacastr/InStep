@@ -13,7 +13,7 @@ function parseTimestampToSeconds(ts) {
   return parseFloat(s) || 0;
 }
 
-function buildSegments(moves, duration) {
+function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
   if (!moves?.length || duration <= 0) return [];
   const sorted = [...moves]
     .map((m) => ({ ...m, startSec: parseTimestampToSeconds(m.timestamp) }))
@@ -29,7 +29,12 @@ function buildSegments(moves, duration) {
     if (start > prevEnd) {
       segments.push({ start: prevEnd, end: start, move: null, color: 'var(--color-light)' });
     }
-    segments.push({ start, end, move, color: move.match ? '#22c55e' : '#ef4444' });
+    const isIgnored = ignoredMoveIds.has(move.id);
+    if (isIgnored) {
+      segments.push({ start, end, move: null, color: 'var(--color-light)' });
+    } else {
+      segments.push({ start, end, move, color: move.match ? '#22c55e' : '#ef4444' });
+    }
     prevEnd = end;
   }
   if (prevEnd < duration) {
@@ -45,12 +50,23 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
   const [currentTime, setCurrentTime] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [ignoredMoveIds, setIgnoredMoveIds] = useState(() => new Set());
   const isScrubbingRef = useRef(false);
+
+  const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1];
+
+  const handleIgnoreMove = (move) => {
+    setIgnoredMoveIds((prev) => new Set(prev).add(move.id));
+  };
 
   const refUrl = refPath ? `${API_BASE}/${refPath}` : null;
   const pracUrl = pracPath ? `${API_BASE}/${pracPath}` : null;
 
-  const segments = useMemo(() => buildSegments(moves, duration), [moves, duration]);
+  const segments = useMemo(
+    () => buildSegments(moves, duration, ignoredMoveIds),
+    [moves, duration, ignoredMoveIds]
+  );
 
   const currentMove = useMemo(() => {
     for (const seg of segments) {
@@ -96,6 +112,12 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
     refV.addEventListener('timeupdate', onTimeUpdate);
     return () => refV.removeEventListener('timeupdate', onTimeUpdate);
   }, [refUrl, pracUrl]);
+
+  // Apply playback speed to both videos
+  useEffect(() => {
+    if (refVideoRef.current) refVideoRef.current.playbackRate = playbackSpeed;
+    if (pracVideoRef.current) pracVideoRef.current.playbackRate = playbackSpeed;
+  }, [playbackSpeed, refUrl, pracUrl]);
 
   const handleScrubberChange = (e) => {
     const t = parseFloat(e.target.value);
@@ -219,8 +241,8 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             backgroundColor: 'var(--color-light)',
           }}
         >
-          {/* Play/Pause button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          {/* Play/Pause and speed */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px', flexWrap: 'wrap' }}>
             <button
               onClick={handlePlayPause}
               className="play-pause-btn"
@@ -236,8 +258,29 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             >
               {isPlaying ? 'Pause' : 'Play'}
             </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-dark)', opacity: 0.8, marginRight: '4px' }}>Speed:</span>
+              {SPEED_OPTIONS.map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => setPlaybackSpeed(speed)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: `2px solid ${playbackSpeed === speed ? 'var(--color-dark)' : '#ccc'}`,
+                    backgroundColor: playbackSpeed === speed ? 'var(--color-dark)' : 'transparent',
+                    color: playbackSpeed === speed ? 'var(--color-light)' : 'var(--color-dark)',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: playbackSpeed === speed ? 600 : 400,
+                  }}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
             <span style={{ fontSize: '12px', color: 'var(--color-dark)', opacity: 0.7 }}>
-              Reference audio plays when playing
+              Reference audio when playing
             </span>
           </div>
           {/* Colored segments as scrubber background */}
@@ -301,7 +344,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
           </div>
         )}
         {currentMove && (
-          <MoveCard move={currentMove} />
+          <MoveCard move={currentMove} onIgnore={handleIgnoreMove} />
         )}
         {!currentMove && (
           <p style={{ color: 'var(--color-dark)', opacity: 0.6, fontSize: '14px', margin: 0 }}>
