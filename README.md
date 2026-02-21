@@ -6,10 +6,16 @@ Compare your dance moves to a reference video. Upload a reference video and your
 
 ## Prerequisites
 
-- **Python 3.9+**
-- **Node.js 18+** and npm
+Before you begin, make sure you have these installed:
+
+| Requirement | Version | Check with |
+|-------------|---------|------------|
+| **Python** | 3.9+ | `python --version` or `python3 --version` |
+| **Node.js** | 18+ | `node --version` |
+| **npm** | (included with Node.js) | `npm --version` |
 
 ---
+
 
 ## Quick Start
 
