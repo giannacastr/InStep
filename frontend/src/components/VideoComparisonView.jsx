@@ -44,6 +44,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const isScrubbingRef = useRef(false);
 
   const refUrl = refPath ? `${API_BASE}/${refPath}` : null;
@@ -105,6 +106,38 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
       pracVideoRef.current.currentTime = Math.min(t, pracVideoRef.current.duration || t);
     isScrubbingRef.current = false;
   };
+
+  const handlePlayPause = () => {
+    const refV = refVideoRef.current;
+    const pracV = pracVideoRef.current;
+    if (!refV || !pracV) return;
+
+    if (isPlaying) {
+      refV.pause();
+      pracV.pause();
+      setIsPlaying(false);
+    } else {
+      refV.muted = false;
+      pracV.muted = true;
+      Promise.all([refV.play(), pracV.play()])
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
+    }
+  };
+
+  // Sync play state with video events (ended, paused)
+  useEffect(() => {
+    const refV = refVideoRef.current;
+    if (!refV) return;
+    const onEnded = () => setIsPlaying(false);
+    const onPause = () => setIsPlaying(false);
+    refV.addEventListener('ended', onEnded);
+    refV.addEventListener('pause', onPause);
+    return () => {
+      refV.removeEventListener('ended', onEnded);
+      refV.removeEventListener('pause', onPause);
+    };
+  }, [refUrl, pracUrl]);
 
   const formatTime = (sec) => {
     const m = Math.floor(sec / 60);
@@ -186,6 +219,27 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             backgroundColor: 'var(--color-light)',
           }}
         >
+          {/* Play/Pause button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <button
+              onClick={handlePlayPause}
+              className="play-pause-btn"
+              style={{
+                padding: '8px 20px',
+                borderRadius: '8px',
+                border: '2px solid var(--color-dark)',
+                backgroundColor: 'var(--color-dark)',
+                color: 'var(--color-light)',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              {isPlaying ? 'Pause' : 'Play'}
+            </button>
+            <span style={{ fontSize: '12px', color: 'var(--color-dark)', opacity: 0.7 }}>
+              Reference audio plays when playing
+            </span>
+          </div>
           {/* Colored segments as scrubber background */}
           <div className="video-scrubber" style={{ marginBottom: '4px' }}>
             <div className="scrubber-track">
