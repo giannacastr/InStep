@@ -1,84 +1,95 @@
 # InStep
 
-Welcome to InStep! This project combines a Python-based computer vision backend with a React frontend. This guide will help you set up your local development environment correctly.
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js & npm (Recommended version: Latest LTS)
+Compare your dance moves to a reference video. Upload a reference video and your practice video to get a move-by-move analysis of where your style differs and how to improve.
 
 ---
 
-## Backend Setup (Python)
+## Prerequisites
 
-The backend handles the vision engine using MediaPipe and other data processing tools.
+- **Python 3.9+**
+- **Node.js 18+** and npm
 
-1. Navigate to the backend folder:
+---
+
+## Quick Start
+
+### 1. Backend (FastAPI)
+
 ```bash
 cd backend
+python -m venv venv
 ```
 
-2. Create a virtual environment:
-```bash
-python3 -m venv venv
-```
+Activate the virtual environment:
+- **Mac/Linux:** `source venv/bin/activate`
+- **Windows:** `.\venv\Scripts\activate`
 
-3. Activate the virtual environment:
-   - Mac/Linux: `source venv/bin/activate`
-   - Windows: `.\venv\Scripts\activate`
-
-4. Install dependencies:
 ```bash
 pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-5. **Environment Variables:** Create a `.env` file in the `backend/` directory. Do not commit this file. Add any necessary API keys or local configurations here.
+The backend runs at `http://127.0.0.1:8000`.
 
 ---
 
-## Frontend Setup (React + Vite)
+### 2. Frontend (React + Vite)
 
-The frontend is built with React and Vite for a fast development experience.
+Open a **new terminal** and run:
 
-1. Navigate to the frontend folder:
 ```bash
 cd frontend
-```
-
-2. Install packages:
-```bash
 npm install
-```
-
-3. Run the development server:
-```bash
 npm run dev
 ```
 
+The frontend runs at `http://localhost:5173` (or the port Vite shows).
+
 ---
 
-## Development Guidelines
+## Usage
 
-### Git Workflow & Safety
-
-To avoid the issues we've seen in previous projects like Hope for Haiti, please follow these rules:
-
-- **Never push `venv/` or `node_modules/`:** These are ignored by the root `.gitignore`. If you install a new Python package, update the requirements file using `pip freeze > backend/requirements.txt`.
-- **Large Files:** Be mindful of large binaries (over 50MB). If you need to include large models, let the team know so we can use Git LFS.
-- **Secrets:** Never commit `.env` files. Ensure they are listed in the `.gitignore`.
+1. Open the app in your browser.
+2. Upload a **Reference Video** (the dance you want to match).
+3. Upload **Your Practice** video.
+4. Click **Analyze Move-by-Move**.
+5. Review the results (analysis coming soon).
 
 ---
 
 ## Project Structure
+
 ```
 InStep/
-├── backend/            # Python logic & vision_engine.py
+├── backend/
+│   ├── main.py           # FastAPI app, upload endpoints
 │   ├── requirements.txt
-│   └── .env            # (Local only)
-├── frontend/           # React + Vite source code
+│   └── uploads/          # Saved videos (gitignored)
+│       ├── reference/
+│       └── practice/
+├── frontend/
 │   ├── src/
+│   │   ├── components/
+│   │   ├── screens/
+│   │   ├── App.jsx
+│   │   └── main.jsx
 │   └── package.json
-└── .gitignore          # Root-level protection
+└── README.md
 ```
+
+---
+
+## Contributing
+
+1. Clone the repo and follow the setup steps above.
+2. Backend changes: add new packages to `requirements.txt` with pinned versions, e.g. `packagename==1.2.3`.
+3. Use `pip install -r requirements.txt` for a clean install.
+4. Don't commit `venv/`, `node_modules/`, or `.env` files.
+5. Large video files in `backend/uploads/` are gitignored.
+
+---
+
+## Tech Stack
+
+- **Backend:** Python, FastAPI, Uvicorn
+- **Frontend:** React 19, Vite, React Router
