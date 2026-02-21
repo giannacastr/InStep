@@ -1,13 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import UploadScreen from './screens/UploadScreen';
 import LoadingScreen from './screens/LoadingScreen';
 import ResultsScreen from './screens/ResultsScreen';
+import { mockAnalysis } from './data/mockAnalysis';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState('upload');
   const [uploadResult, setUploadResult] = useState(null);
+
+  // Preview results screen: open http://localhost:5176/#results
+  useEffect(() => {
+    if (window.location.hash === '#results') {
+      setUploadResult({
+        ref_path: mockAnalysis.ref_path,
+        prac_path: mockAnalysis.prac_path,
+        analysis: mockAnalysis.analysis,
+      });
+      setCurrentScreen('results');
+    }
+  }, []);
+
   const navigate = useNavigate();
 
   const handleAnalyze = (data) => {

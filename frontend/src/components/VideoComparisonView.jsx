@@ -27,13 +27,13 @@ function buildSegments(moves, duration) {
     const start = move.startSec;
     const end = i < sorted.length - 1 ? sorted[i + 1].startSec : duration;
     if (start > prevEnd) {
-      segments.push({ start: prevEnd, end: start, move: null, color: 'var(--color-light)' });
+      segments.push({ start: prevEnd, end: start, move: null, color: 'rgba(237, 242, 253, 0.2)' });
     }
-    segments.push({ start, end, move, color: move.match ? '#22c55e' : '#ef4444' });
+    segments.push({ start, end, move, color: move.match ? 'var(--color-teal)' : 'var(--color-purple)' });
     prevEnd = end;
   }
   if (prevEnd < duration) {
-    segments.push({ start: prevEnd, end: duration, move: null, color: 'var(--color-light)' });
+    segments.push({ start: prevEnd, end: duration, move: null, color: 'rgba(237, 242, 253, 0.2)' });
   }
   return segments;
 }
@@ -45,7 +45,9 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
   const [currentTime, setCurrentTime] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const isScrubbingRef = useRef(false);
+  const scrubTimeoutRef = useRef(null);
 
   const refUrl = refPath ? `${API_BASE}/${refPath}` : null;
   const pracUrl = pracPath ? `${API_BASE}/${pracPath}` : null;
@@ -99,13 +101,22 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
 
   const handleScrubberChange = (e) => {
     const t = parseFloat(e.target.value);
+    if (scrubTimeoutRef.current) clearTimeout(scrubTimeoutRef.current);
     isScrubbingRef.current = true;
     setCurrentTime(t);
     if (refVideoRef.current) refVideoRef.current.currentTime = t;
     if (pracVideoRef.current)
       pracVideoRef.current.currentTime = Math.min(t, pracVideoRef.current.duration || t);
-    isScrubbingRef.current = false;
+    scrubTimeoutRef.current = setTimeout(() => {
+      isScrubbingRef.current = false;
+      scrubTimeoutRef.current = null;
+    }, 100);
   };
+
+  useEffect(() => {
+    if (refVideoRef.current) refVideoRef.current.playbackRate = playbackRate;
+    if (pracVideoRef.current) pracVideoRef.current.playbackRate = playbackRate;
+  }, [playbackRate]);
 
   const handlePlayPause = () => {
     const refV = refVideoRef.current;
@@ -152,98 +163,54 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
       className="video-comparison-layout"
       style={{
         marginBottom: '32px',
-        border: '2px solid var(--color-purple)',
-        borderRadius: '12px',
-        overflow: 'hidden',
-        backgroundColor: 'var(--color-light)',
+        display: 'flex',
+        flex: 1,
+        gap: '18px',
+        minHeight: 0,
       }}
     >
-      {/* Left: videos + scrubber */}
-      <div className="video-comparison-main">
+      {/* Left: videos + scrubber (mockup style) */}
+      <div className="video-comparison-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(237,242,253,0.07)' }}>
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: '0',
-            backgroundColor: 'var(--color-dark)',
+            flex: 1,
+            background: '#050d12',
           }}
         >
-        <div>
-          <div
-            style={{
-              padding: '8px 12px',
-              backgroundColor: 'var(--color-dark)',
-              color: 'var(--color-light)',
-              fontSize: '14px',
-              fontWeight: 600,
-            }}
-          >
-            Reference
+          <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(237,242,253,0.05)' }}>
+            <div style={{ padding: '7px 14px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(237,242,253,0.38)', borderBottom: '1px solid rgba(237,242,253,0.04)' }}>
+              Reference
+            </div>
+            <video
+              ref={refVideoRef}
+              src={refUrl}
+              style={{ width: '100%', display: 'block', aspectRatio: '16/9', objectFit: 'cover', background: '#050d12' }}
+              muted
+              playsInline
+              crossOrigin="anonymous"
+            />
           </div>
-          <video
-            ref={refVideoRef}
-            src={refUrl}
-            style={{ width: '100%', display: 'block' }}
-            muted
-            playsInline
-            crossOrigin="anonymous"
-          />
-        </div>
-        <div>
-          <div
-            style={{
-              padding: '8px 12px',
-              backgroundColor: 'var(--color-dark)',
-              color: 'var(--color-light)',
-              fontSize: '14px',
-              fontWeight: 600,
-            }}
-          >
-            Your Practice
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '7px 14px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(237,242,253,0.38)', borderBottom: '1px solid rgba(237,242,253,0.04)' }}>
+              Your Practice
+            </div>
+            <video
+              ref={pracVideoRef}
+              src={pracUrl}
+              style={{ width: '100%', display: 'block', aspectRatio: '16/9', objectFit: 'cover', background: '#050d12' }}
+              muted
+              playsInline
+              crossOrigin="anonymous"
+            />
           </div>
-          <video
-            ref={pracVideoRef}
-            src={pracUrl}
-            style={{ width: '100%', display: 'block' }}
-            muted
-            playsInline
-            crossOrigin="anonymous"
-          />
         </div>
-      </div>
 
-      {isReady && (
-        <div
-          style={{
-            padding: '12px 16px',
-            backgroundColor: 'var(--color-light)',
-          }}
-        >
-          {/* Play/Pause button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <button
-              onClick={handlePlayPause}
-              className="play-pause-btn"
-              style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
-                border: '2px solid var(--color-dark)',
-                backgroundColor: 'var(--color-dark)',
-                color: 'var(--color-light)',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              {isPlaying ? 'Pause' : 'Play'}
-            </button>
-            <span style={{ fontSize: '12px', color: 'var(--color-dark)', opacity: 0.7 }}>
-              Reference audio plays when playing
-            </span>
-          </div>
-          {/* Colored segments as scrubber background */}
+        <div className="video-comparison-controls" style={{ padding: '10px 12px 12px', background: 'rgba(7,16,22,0.97)', borderTop: '1px solid rgba(237,242,253,0.05)', flexShrink: 0 }}>
           <div className="video-scrubber" style={{ marginBottom: '4px' }}>
             <div className="scrubber-track">
-              {segments.length > 0 ? (
+              {isReady && segments.length > 0 ? (
                 segments.map((seg, i) => (
                   <div
                     key={seg.move ? seg.move.id : `gap-${i}`}
@@ -256,7 +223,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
                   />
                 ))
               ) : (
-                <div style={{ width: '100%', backgroundColor: 'var(--color-light)' }} />
+                <div style={{ width: '100%', backgroundColor: 'rgba(237,242,253,0.12)' }} />
               )}
             </div>
             <input
@@ -266,48 +233,111 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
               step={0.1}
               value={currentTime}
               onChange={handleScrubberChange}
+              disabled={!isReady}
+              style={{ opacity: isReady ? 1 : 0.5 }}
             />
           </div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginTop: '4px',
-              fontSize: '12px',
-              color: 'var(--color-dark)',
-              opacity: 0.7,
-            }}
-          >
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(237,242,253,0.28)', marginBottom: '8px' }}>
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handlePlayPause}
+              disabled={!isReady}
+              className="play-pause-btn video-comparison-play-btn"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                border: 'none',
+                cursor: isReady ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                background: 'linear-gradient(135deg, var(--color-purple), var(--color-teal))',
+                boxShadow: '0 0 14px rgba(68,187,164,0.3)',
+                opacity: isReady ? 1 : 0.5,
+              }}
+            >
+              {isPlaying ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+              ) : (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
+              )}
+            </button>
+            <div style={{ display: 'flex', gap: 3 }}>
+              {[0.5, 1, 1.5, 2].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setPlaybackRate(r)}
+                  disabled={!isReady}
+                  style={{
+                    padding: '3px 8px',
+                    fontSize: '10px',
+                    borderRadius: 4,
+                    border: `1px solid ${playbackRate === r ? 'var(--color-purple)' : 'rgba(237,242,253,0.15)'}`,
+                    background: playbackRate === r ? 'rgba(180,126,179,0.2)' : 'transparent',
+                    color: playbackRate === r ? 'var(--color-purple)' : 'rgba(237,242,253,0.4)',
+                    cursor: isReady ? 'pointer' : 'default',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {r}x
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: '10px', color: 'rgba(237,242,253,0.45)' }}>Ref audio when playing</span>
+          </div>
         </div>
-      )}
       </div>
 
-      {/* Right: score + dynamic feedback (stacks below on small screens) */}
-      <div className="video-comparison-feedback">
+      {/* Right: accuracy + feedback (mockup style) */}
+      <div className="video-comparison-feedback" style={{ width: '220px', minWidth: '200px', maxWidth: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {overallScore != null && (
           <div
+            className="video-comparison-score-block"
             style={{
-              padding: '16px',
-              marginBottom: '16px',
-              backgroundColor: 'var(--color-gold)',
-              borderRadius: '12px',
-              color: 'var(--color-dark)',
+              padding: '16px 14px 12px',
+              background: 'linear-gradient(150deg, rgba(231,187,65,0.2) 0%, rgba(68,187,164,0.07) 100%)',
+              borderBottom: '1px solid rgba(237,242,253,0.06)',
+              flexShrink: 0,
             }}
           >
-            <strong>Overall score: {overallScore}%</strong>
+            <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(237,242,253,0.38)', marginBottom: '1px' }}>Accuracy</div>
+            <div
+              style={{
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontWeight: 900,
+                fontSize: '48px',
+                lineHeight: 1,
+                background: 'linear-gradient(120deg, var(--color-gold) 0%, #f5d06a 50%, var(--color-teal) 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                filter: 'drop-shadow(0 0 16px rgba(231,187,65,0.5))',
+              }}
+            >
+              {overallScore}%
+            </div>
+            <div style={{ marginTop: '10px', height: 4, borderRadius: 2, background: 'rgba(237,242,253,0.08)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${overallScore}%`, borderRadius: 2, background: 'linear-gradient(90deg, var(--color-gold), var(--color-teal))', transition: 'width 1s cubic-bezier(0.4,0,0.2,1)' }} />
+            </div>
           </div>
         )}
-        {currentMove && (
-          <MoveCard move={currentMove} />
-        )}
-        {!currentMove && (
-          <p style={{ color: 'var(--color-dark)', opacity: 0.6, fontSize: '14px', margin: 0 }}>
-            Scrub to a colored section to see feedback
-          </p>
-        )}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {currentMove && (
+            <MoveCard move={currentMove} darkBackground />
+          )}
+          {!currentMove && (
+            <p style={{ color: 'rgba(237,242,253,0.5)', fontSize: '13px', margin: 0 }}>
+              Scrub to a colored section to see feedback
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -2,9 +2,9 @@ import React from 'react';
 
 export default function LoadingScreen() {
   return (
-    <div style={{ textAlign: 'center', marginTop: '80px' }}>
-      <h1 style={{ color: 'var(--color-dark)' }}>InStep</h1>
-      <p style={{ color: 'var(--color-dark)', opacity: 0.8 }}>Analyzing your moves...</p>
+    <div className="loading-page">
+      <h1 className="loading-page__title">InStep</h1>
+      <p className="loading-page__text">Analyzing your moves...</p>
     </div>
   );
 }

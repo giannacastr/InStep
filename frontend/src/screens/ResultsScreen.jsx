@@ -3,33 +3,38 @@ import VideoComparisonView from '../components/VideoComparisonView';
 import { mockAnalysis } from '../data/mockAnalysis';
 
 export default function ResultsScreen({ data, onTryAgain }) {
-  // Use real analysis from backend when available, otherwise mock data
   const analysis = data?.analysis ?? mockAnalysis.analysis;
   const { moves = [], overallScore } = analysis;
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 24px' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '8px', color: 'var(--color-dark)' }}>InStep</h1>
-      <p style={{ textAlign: 'center', color: 'var(--color-dark)', opacity: 0.8, marginBottom: '24px' }}>
-        Move-by-move analysis
-      </p>
+    <div className="results-page">
+      <div className="results-page__bg">
+        <div className="results-page__blob-gold" />
+        <div className="results-page__blob-teal" />
+        <div className="results-page__blob-purple" />
+      </div>
+      <div className="results-page__logo">InStep</div>
 
-      {data?.ref_path && data?.prac_path && (
-        <VideoComparisonView
-          refPath={data.ref_path}
-          pracPath={data.prac_path}
-          moves={moves}
-          overallScore={overallScore}
-        />
-      )}
+      <div className="results-page__inner">
+        <p className="results-page__subtitle">Move-by-move analysis</p>
 
-      {onTryAgain && (
-        <div style={{ textAlign: 'center', marginTop: '32px' }}>
-          <button onClick={onTryAgain} className="cta-button">
-            Upload New Videos
-          </button>
-        </div>
-      )}
+        {data?.ref_path && data?.prac_path && (
+          <VideoComparisonView
+            refPath={data.ref_path}
+            pracPath={data.prac_path}
+            moves={moves}
+            overallScore={overallScore}
+          />
+        )}
+
+        {onTryAgain && (
+          <div style={{ textAlign: 'center', marginTop: '32px' }}>
+            <button type="button" onClick={onTryAgain} className="results-page__upload-btn">
+              Upload New Videos
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

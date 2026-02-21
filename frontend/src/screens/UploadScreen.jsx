@@ -5,6 +5,7 @@ export default function UploadScreen({ onAnalyze }) {
   const [refFile, setRefFile] = useState(null);
   const [pracFile, setPracFile] = useState(null);
   const [status, setStatus] = useState("Upload your videos to begin");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleUpload = async () => {
     if (!refFile || !pracFile) {
@@ -13,6 +14,7 @@ export default function UploadScreen({ onAnalyze }) {
     }
 
     setStatus("Syncing videos...");
+    setIsSubmitting(true);
     const formData = new FormData();
     formData.append('ref_file', refFile);
     formData.append('prac_file', pracFile);
@@ -23,35 +25,50 @@ export default function UploadScreen({ onAnalyze }) {
         body: formData,
       });
       const data = await response.json();
-      setStatus(data.message);
-      if (data.status === "Success" && onAnalyze) {
+      setStatus(data.message || "Upload complete.");
+      if (data.status === "Success" && data.ref_path && data.prac_path && onAnalyze) {
         onAnalyze(data);
+      } else if (data.ref_path && data.prac_path && onAnalyze) {
+        onAnalyze(data);
+      } else if (!response.ok) {
+        setStatus("Upload failed. Please try again.");
       }
     } catch (error) {
       setStatus("Error connecting to InStep backend.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '40px' }}>
-      <h1 style={{ color: 'var(--color-dark)', marginBottom: '8px' }}>InStep</h1>
-      <p style={{ color: 'var(--color-dark)', opacity: 0.85 }}>{status}</p>
+    <div className="upload-page">
+      <div className="upload-page__blur-wrap">
+        <div className="upload-page__blur-circle-warm" aria-hidden />
+        <div className="upload-page__blur-circle-cool" aria-hidden />
+      </div>
+      <h1 className="upload-page__title">InStep</h1>
+      <p className="upload-page__status">{status}</p>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', padding: '24px', flexWrap: 'wrap' }}>
+      <div className="upload-page__cards">
+        <VideoUploadCard
+          title="Practice Video"
+          file={pracFile}
+          onFileChange={setPracFile}
+        />
         <VideoUploadCard
           title="Reference Video"
           file={refFile}
           onFileChange={setRefFile}
         />
-        <VideoUploadCard
-          title="Your Practice"
-          file={pracFile}
-          onFileChange={setPracFile}
-        />
       </div>
 
-      <button onClick={handleUpload} className="cta-button">
-        Analyze Move-by-Move
+      <button
+        type="button"
+        onClick={handleUpload}
+        disabled={!refFile || !pracFile || isSubmitting}
+        className="cta-button upload-page__analyze"
+      >
+        {isSubmitting ? "Uploading…" : "Analyze"}
       </button>
     </div>
   );
