@@ -33,7 +33,19 @@ function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
     if (isIgnored) {
       segments.push({ start, end, move: null, color: 'rgba(237, 242, 253, 0.2)' });
     } else {
-      segments.push({ start, end, move, color: move.match ? '#1A7A5E' : '#C0274A' });
+      // Color based on status: match=green, close/gray=gray, miss=red, gap=gray
+      const status = move.status || (move.match ? 'match' : 'miss');
+      let color;
+      if (status === 'match') {
+        color = '#1A7A5E'; // Green - good match
+      } else if (status === 'close') {
+        color = '#6B7280'; // Gray - close enough
+      } else if (status === 'gap') {
+        color = 'rgba(237, 242, 253, 0.15)'; // Light gray - no data (video gap)
+      } else {
+        color = '#C0274A'; // Red - poor match
+      }
+      segments.push({ start, end, move, color });
     }
     prevEnd = end;
   }
@@ -301,7 +313,7 @@ export default function VideoComparisonView({ refPath, pracPath, sync, moves = [
                       backgroundColor: seg.color,
                       minWidth: 2,
                     }}
-                    title={seg.move ? `${seg.move.label} (${seg.move.match ? 'matched' : 'needs work'})` : undefined}
+                    title={seg.move ? `${seg.move.label} (${seg.move.status || (seg.move.match ? 'matched' : 'needs work')})` : undefined}
                   />
                 ))
               ) : (

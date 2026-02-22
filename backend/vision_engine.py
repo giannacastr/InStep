@@ -63,14 +63,18 @@ if _model_available:
 
 pose_landmarker = None
 
+def create_pose_landmarker():
+    """Create a fresh PoseLandmarker instance for each video."""
+    if options is None:
+        return None
+    try:
+        return PoseLandmarker.create_from_options(options)
+    except Exception as e:
+        print(f"Error creating pose landmarker: {e}")
+        return None
+
 def get_pose_landmarker():
-    global pose_landmarker
-    if pose_landmarker is None and options:
-        try:
-            pose_landmarker = PoseLandmarker.create_from_options(options)
-        except Exception as e:
-            print(f"Error creating pose landmarker: {e}")
-    return pose_landmarker
+    return create_pose_landmarker()
 
 
 FRAME_SAMPLE_RATE = 5
@@ -98,6 +102,7 @@ def extract_poses(video_path: str) -> list[dict]:
     
     poses = []
     frame_idx = 0
+    timestamp = 0.0
     
     try:
         landmarker = get_pose_landmarker()
@@ -108,7 +113,9 @@ def extract_poses(video_path: str) -> list[dict]:
                 break
             
             if frame_idx % FRAME_SAMPLE_RATE == 0:
+                # Use monotonically increasing timestamp (skip frames for timing)
                 timestamp = frame_idx / fps
+                
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 result = landmarker.detect_for_video(mp_image, int(timestamp * 1000))
@@ -117,11 +124,15 @@ def extract_poses(video_path: str) -> list[dict]:
                     landmarks = np.array([[lm.x, lm.y, lm.z] for lm in result.pose_landmarks[0]])
                     confidences = [lm.visibility for lm in result.pose_landmarks[0]]
                     confidence = np.mean(confidences) if confidences else 0
-                    poses.append({
-                        'timestamp': timestamp,
-                        'landmarks': landmarks,
-                        'confidence': confidence
-                    })
+                    
+                    # Only add pose if confidence is high enough (body clearly visible)
+                    MIN_POSE_CONFIDENCE = 0.5
+                    if confidence >= MIN_POSE_CONFIDENCE:
+                        poses.append({
+                            'timestamp': timestamp,
+                            'landmarks': landmarks,
+                            'confidence': confidence
+                        })
             
             frame_idx += 1
     finally:
@@ -196,60 +207,123 @@ def compute_frame_similarities(ref_poses: list, prac_poses: list, offset: float 
     return similarities
 
 
-def detect_moves(poses: list, threshold: float = 0.15) -> list:
+def detect_moves(poses: list, threshold: float = 0.08) -> list:
     """
-    Detect distinct moves based on significant pose changes.
+    Detect distinct moves based on significant pose changes using body part angles.
     Returns list of move timestamps.
     """
-    if len(poses) < 2:
+    if len(poses) < 5:
+        return []
+    
+    # Filter to only high-confidence poses (body clearly visible)
+    MIN_CONFIDENCE = 0.5
+    valid_poses = [p for p in poses if p.get('confidence', 0) >= MIN_CONFIDENCE]
+    if len(valid_poses) < 5:
         return []
     
     moves = []
-    prev_pose = poses[0]['landmarks']
     move_start = 0
     
-    for i in range(1, len(poses)):
-        curr_pose = poses[i]['landmarks']
-        diff = np.linalg.norm(curr_pose - prev_pose)
+    # Calculate movement using key body joints
+    def get_body_movement(pose):
+        # Use shoulders, hips, and ankles for movement detection
+        left_shoulder = pose[11]
+        right_shoulder = pose[12]
+        left_hip = pose[23]
+        right_hip = pose[24]
+        left_ankle = pose[27]
+        right_ankle = pose[28]
         
+        # Body center movement
+        shoulders = (left_shoulder + right_shoulder) / 2
+        hips = (left_hip + right_hip) / 2
+        ankles = (left_ankle + right_ankle) / 2
+        
+        return np.concatenate([shoulders, hips, ankles])
+    
+    prev_movement = get_body_movement(valid_poses[0]['landmarks'])
+    
+    for i in range(1, len(valid_poses)):
+        curr_movement = get_body_movement(valid_poses[i]['landmarks'])
+        diff = np.linalg.norm(curr_movement - prev_movement)
+        
+        # Significant movement detected
         if diff > threshold:
-            if i - move_start > 3:
+            # Only add move if it's long enough (at least 0.5 seconds)
+            duration = valid_poses[i]['timestamp'] - valid_poses[move_start]['timestamp']
+            if duration > 0.5 and i - move_start > 3:
                 moves.append({
-                    'timestamp': poses[move_start]['timestamp'],
+                    'timestamp': valid_poses[move_start]['timestamp'],
                     'start_idx': move_start,
-                    'end_idx': i
+                    'end_idx': i,
+                    'duration': duration
                 })
             move_start = i
-        prev_pose = curr_pose
+        prev_movement = curr_movement
     
-    if len(poses) - move_start > 3:
+    # Add final move if long enough
+    duration = valid_poses[-1]['timestamp'] - valid_poses[move_start]['timestamp']
+    if duration > 0.5 and len(valid_poses) - move_start > 3:
         moves.append({
-            'timestamp': poses[move_start]['timestamp'],
+            'timestamp': valid_poses[move_start]['timestamp'],
             'start_idx': move_start,
-            'end_idx': len(poses) - 1
+            'end_idx': len(valid_poses) - 1,
+            'duration': duration
         })
     
     return moves
 
 
-def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: float) -> dict:
+def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: float, ref_duration: float = 0, prac_duration: float = 0) -> dict:
     """
     Analyze quality of a specific move.
     Returns match status, feedback, and tips.
+    
+    Status values:
+    - "match": Good match (above 70%)
+    - "close": Close enough (50-70%) - counts towards score but not perfect
+    - "miss": Poor match (below 50%)
+    - "gap": No practice data (video gap from offset)
     """
+    # Thresholds
+    MATCH_THRESHOLD = 0.70  # Green - good match
+    CLOSE_THRESHOLD = 0.50  # Gray - close enough
+    
     start_time = move['timestamp']
     end_time = move.get('end_timestamp', start_time + 2.0)
     
     ref_start = start_time - offset
     ref_end = end_time - offset
     
+    # Check for video gap (no practice data available)
+    if prac_duration > 0:
+        # If practice video doesn't cover this time range, it's a gap
+        if ref_start < 0 or ref_end > prac_duration:
+            return {
+                'status': 'gap',
+                'match': False,
+                'feedback': 'Practice video does not cover this section.',
+                'tips': [],
+                'similarity': 0.0
+            }
+    
     ref_frames = [p for p in ref_poses if start_time <= p['timestamp'] <= end_time]
     prac_frames = [p for p in prac_poses if ref_start <= p['timestamp'] <= ref_end]
     
-    if not ref_frames or not prac_frames:
+    if not ref_frames:
         return {
+            'status': 'gap',
             'match': False,
-            'feedback': 'Could not analyze this move.',
+            'feedback': 'No reference data for this section.',
+            'tips': [],
+            'similarity': 0.0
+        }
+    
+    if not prac_frames:
+        return {
+            'status': 'gap',
+            'match': False,
+            'feedback': 'Practice video does not cover this section.',
             'tips': [],
             'similarity': 0.0
         }
@@ -263,6 +337,7 @@ def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: 
     
     if not similarities:
         return {
+            'status': 'miss',
             'match': False,
             'feedback': 'Practice footage not aligned with reference for this move.',
             'tips': [],
@@ -270,20 +345,27 @@ def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: 
         }
     
     avg_sim = np.mean(similarities)
-    match = avg_sim > 0.75
     
-    if avg_sim > 0.85:
+    # Determine status based on thresholds
+    if avg_sim >= MATCH_THRESHOLD:
+        status = 'match'
+        match = True
         feedback = "Great job! Your form closely matches the reference."
         tips = ["Keep up the good work!", "Try to maintain this consistency"]
-    elif avg_sim > 0.75:
-        feedback = "Good effort! Minor adjustments needed."
-        tips = ["Focus on the specific body parts mentioned in feedback"]
-    elif avg_sim > 0.6:
-        feedback = "Getting there! Significant differences in form."
-        tips = ["Study the reference more carefully", "Slow down and practice the move in parts"]
+    elif avg_sim >= CLOSE_THRESHOLD:
+        status = 'close'
+        match = False  # Not a "perfect" match but close enough
+        feedback = "Good effort! You're on the right track."
+        tips = ["Minor adjustments needed to perfect this move"]
     else:
-        feedback = "Needs work. Try breaking down the move into smaller parts."
-        tips = ["Practice with a mirror", "Watch the reference video multiple times", "Focus on one body part at a time"]
+        status = 'miss'
+        match = False
+        if avg_sim > 0.40:
+            feedback = "Getting there! Keep practicing this section."
+            tips = ["Focus on timing and body positioning"]
+        else:
+            feedback = "Needs work. Try breaking down the move into smaller parts."
+            tips = ["Practice with a mirror", "Watch the reference video multiple times", "Focus on one body part at a time"]
     
     arm_diff = analyze_body_part(ref_frames, prac_frames, [11, 12, 13, 14, 15, 16, 23, 24])
     leg_diff = analyze_body_part(ref_frames, prac_frames, [23, 24, 25, 26, 27, 28])
@@ -297,6 +379,7 @@ def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: 
         tips.append("Work on core engagement and torso posture")
     
     return {
+        'status': status,
         'match': match,
         'feedback': feedback,
         'tips': tips[:3],
@@ -371,6 +454,10 @@ def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0)
     
     ref_moves = detect_moves(ref_poses)
     
+    # Get video durations for gap detection
+    ref_duration = ref_poses[-1]['timestamp'] if ref_poses else 0
+    prac_duration = prac_poses[-1]['timestamp'] if prac_poses else 0
+    
     if not ref_moves:
         ref_moves = [{'timestamp': ref_poses[0]['timestamp'], 'start_idx': 0, 'end_idx': len(ref_poses) - 1}]
     
@@ -384,30 +471,58 @@ def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0)
     total_similarity = 0
     matched_count = 0
     
+    # Check if entire video is one move (high overall similarity)
+    overall_sim = 0
+    if ref_poses and prac_poses:
+        sample_ref = ref_poses[min(10, len(ref_poses)-1)]['landmarks']
+        sample_prac = prac_poses[min(10, len(prac_poses)-1)]['landmarks']
+        overall_sim = pose_similarity(sample_ref, sample_prac)
+    
+    is_full_match = len(ref_moves) <= 1 and overall_sim > 0.70
+    
     for i, move in enumerate(ref_moves):
-        quality = analyze_move_quality(ref_poses, prac_poses, move, offset)
+        quality = analyze_move_quality(ref_poses, prac_poses, move, offset, ref_duration, prac_duration)
         
-        move_label = f"Move {i + 1}"
+        # More descriptive labels
+        if is_full_match:
+            move_label = "Full Routine"
+        else:
+            duration = move.get('duration', 2.0)
+            ts = format_timestamp(move['timestamp'])
+            move_label = f"{ts} ({duration:.1f}s)"
         
         moves.append({
             'id': i + 1,
             'timestamp': format_timestamp(move['timestamp']),
             'label': move_label,
+            'status': quality.get('status', 'miss'),
             'match': quality['match'],
             'feedback': quality['feedback'],
             'tips': quality['tips']
         })
         
         total_similarity += quality.get('similarity', 0)
-        if quality['match']:
+        # Count both "match" and "close" as correct for scoring
+        if quality.get('status') in ['match', 'close']:
             matched_count += 1
     
     overall_score = int((matched_count / len(moves)) * 100) if moves else 0
     
     return {
         'success': True,
-        'overallScore': overall_score,
-        'moves': moves
+        'overallScore': int(overall_score),
+        'moves': [
+            {
+                'id': int(m['id']),
+                'timestamp': str(m['timestamp']),
+                'label': str(m['label']),
+                'status': str(m.get('status', 'miss')),
+                'match': bool(m['match']),
+                'feedback': str(m['feedback']),
+                'tips': list(m['tips'])
+            }
+            for m in moves
+        ]
     }
 
 
