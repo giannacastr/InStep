@@ -33,7 +33,7 @@ function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
     if (isIgnored) {
       segments.push({ start, end, move: null, color: 'rgba(237, 242, 253, 0.2)' });
     } else {
-      segments.push({ start, end, move, color: move.match ? '#0B7A25' : '#960319' });
+      segments.push({ start, end, move, color: move.match ? '#1A7A5E' : '#C0274A' });
     }
     prevEnd = end;
   }
@@ -51,6 +51,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [ignoredMoveIds, setIgnoredMoveIds] = useState(() => new Set());
   const isScrubbingRef = useRef(false);
   const scrubTimeoutRef = useRef(null);
@@ -196,7 +197,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
       }}
     >
       {/* Left: videos + scrubber - fixed height based on aspect ratio */}
-      <div className="video-comparison-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(237,242,253,0.07)' }}>
+      <div className="video-comparison-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRadius: '14px', overflow: 'visible', border: '1px solid rgba(237,242,253,0.07)' }}>
         <div
           style={{
             display: 'grid',
@@ -272,7 +273,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', position: 'relative' }}>
             <button
               type="button"
               onClick={handlePlayPause}
@@ -304,27 +305,69 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
               )}
             </button>
-            <div style={{ display: 'flex', gap: 3 }}>
-              {SPEED_OPTIONS.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setPlaybackRate(r)}
-                  disabled={!isReady}
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                disabled={!isReady}
+                onClick={() => isReady && setShowSpeedMenu((open) => !open)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '10px',
+                  borderRadius: 6,
+                  border: '1px solid rgba(237,242,253,0.2)',
+                  background: 'rgba(7,16,22,0.9)',
+                  color: 'rgba(237,242,253,0.9)',
+                  cursor: isReady ? 'pointer' : 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontFamily: 'inherit',
+                }}
+              >
+                <span>Speed: {playbackRate}x</span>
+                <span style={{ fontSize: 9, opacity: 0.8 }}>▾</span>
+              </button>
+              {showSpeedMenu && (
+                <div
                   style={{
-                    padding: '3px 8px',
-                    fontSize: '10px',
-                    borderRadius: 4,
-                    border: `1px solid ${playbackRate === r ? 'var(--color-purple)' : 'rgba(237,242,253,0.15)'}`,
-                    background: playbackRate === r ? 'rgba(180,126,179,0.2)' : 'transparent',
-                    color: playbackRate === r ? 'var(--color-purple)' : 'rgba(237,242,253,0.4)',
-                    cursor: isReady ? 'pointer' : 'default',
-                    fontFamily: 'inherit',
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    transform: 'translateY(6px)',
+                    padding: '6px 4px',
+                    borderRadius: 8,
+                    background: 'rgba(5, 13, 18, 0.98)',
+                    border: '1px solid rgba(237,242,253,0.18)',
+                    boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
+                    minWidth: '90px',
+                    zIndex: 9999,
                   }}
                 >
-                  {r}
-                </button>
-              ))}
+                  {SPEED_OPTIONS.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        setPlaybackRate(r);
+                        setShowSpeedMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        border: 'none',
+                        background: playbackRate === r ? 'rgba(180,126,179,0.18)' : 'transparent',
+                        color: playbackRate === r ? 'var(--color-light)' : 'rgba(237,242,253,0.7)',
+                        fontSize: '10px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {r}x
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <span style={{ fontSize: '10px', color: 'rgba(237,242,253,0.45)' }}>Ref audio when playing</span>
           </div>
