@@ -5,6 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from audio_sync import compute_sync_offset
+from vision_engine import analyze_videos
+
 app = FastAPI()
 
 app.add_middleware(
@@ -50,6 +53,26 @@ async def upload_comparison(ref_file: UploadFile = File(...), prac_file: UploadF
     }
 
 
+class ComputeSyncRequest(BaseModel):
+    ref_path: str
+    prac_path: str
+
+
+@app.post("/compute-sync")
+async def compute_sync(body: ComputeSyncRequest):
+    """
+    Compute audio-based sync offset between reference and practice videos.
+    Requires ffmpeg to be installed on the system.
+    """
+    base = os.path.abspath(UPLOAD_DIR)
+    ref_abs = os.path.abspath(body.ref_path)
+    prac_abs = os.path.abspath(body.prac_path)
+    if not ref_abs.startswith(base) or not prac_abs.startswith(base):
+        return {"success": False, "error": "Invalid paths"}
+    result = compute_sync_offset(ref_abs, prac_abs)
+    return result
+
+
 class ClearUploadsRequest(BaseModel):
     ref_path: str | None = None
     prac_path: str | None = None
@@ -67,3 +90,26 @@ async def clear_uploads(body: ClearUploadsRequest):
                 os.remove(abs_path)
                 deleted.append(path)
     return {"status": "Success", "message": "Videos cleared.", "deleted": deleted}
+
+
+class AnalyzeRequest(BaseModel):
+    ref_path: str
+    prac_path: str
+    offset: float = 0.0
+
+
+@app.post("/analyze")
+async def analyze(body: AnalyzeRequest):
+    """
+    Analyze reference and practice videos to detect moves and provide feedback.
+    Uses MediaPipe Pose to extract keypoints and compare movements.
+    """
+    base = os.path.abspath(UPLOAD_DIR)
+    ref_abs = os.path.abspath(body.ref_path)
+    prac_abs = os.path.abspath(body.prac_path)
+    
+    if not ref_abs.startswith(base) or not prac_abs.startswith(base):
+        return {"success": False, "error": "Invalid paths"}
+    
+    result = analyze_videos(ref_abs, prac_abs, body.offset)
+    return result
