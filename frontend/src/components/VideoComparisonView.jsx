@@ -33,7 +33,7 @@ function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
     if (isIgnored) {
       segments.push({ start, end, move: null, color: 'rgba(237, 242, 253, 0.2)' });
     } else {
-      segments.push({ start, end, move, color: move.match ? 'var(--color-teal)' : 'var(--color-purple)' });
+      segments.push({ start, end, move, color: move.match ? '#0B7A25' : '#960319' });
     }
     prevEnd = end;
   }
@@ -68,6 +68,15 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
     () => buildSegments(moves, duration, ignoredMoveIds),
     [moves, duration, ignoredMoveIds]
   );
+
+  const displayScore = useMemo(() => {
+    if (overallScore == null) return null;
+    if (!moves?.length) return overallScore;
+    const activeMoves = moves.filter((m) => !ignoredMoveIds.has(m.id));
+    if (!activeMoves.length) return 0;
+    const matched = activeMoves.filter((m) => m.match).length;
+    return Math.round((matched / activeMoves.length) * 100);
+  }, [moves, ignoredMoveIds, overallScore]);
 
   const currentMove = useMemo(() => {
     for (const seg of segments) {
@@ -324,13 +333,12 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
 
       {/* Right: accuracy + feedback - fixed height to match video column */}
       <div className="video-comparison-feedback" style={{ width: '220px', minWidth: '200px', maxWidth: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', alignSelf: 'stretch' }}>
-        {overallScore != null && (
+        {displayScore != null && (
           <div
             className="video-comparison-score-block"
             style={{
               padding: '16px 14px 12px',
-              background: 'linear-gradient(150deg, rgba(231,187,65,0.2) 0%, rgba(68,187,164,0.07) 100%)',
-              borderBottom: '1px solid rgba(237,242,253,0.06)',
+              background: 'linear-gradient(150deg, rgba(231,187,65,0.18) 0%, rgba(231,187,65,0.06) 40%, transparent 100%)',
               flexShrink: 0,
             }}
           >
@@ -348,10 +356,10 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
                 filter: 'drop-shadow(0 0 16px rgba(231,187,65,0.5))',
               }}
             >
-              {overallScore}%
+              {displayScore}%
             </div>
             <div style={{ marginTop: '10px', height: 4, borderRadius: 2, background: 'rgba(237,242,253,0.08)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${overallScore}%`, borderRadius: 2, background: 'linear-gradient(90deg, var(--color-gold), var(--color-teal))', transition: 'width 1s cubic-bezier(0.4,0,0.2,1)' }} />
+              <div style={{ height: '100%', width: `${displayScore}%`, borderRadius: 2, background: 'linear-gradient(90deg, var(--color-gold), var(--color-teal))', transition: 'width 1s cubic-bezier(0.4,0,0.2,1)' }} />
             </div>
           </div>
         )}
