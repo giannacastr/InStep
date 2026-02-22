@@ -76,17 +76,17 @@ button:focus-visible {
 /* Scrubber with colored segment background - transparent track, visible thumb */
 .video-scrubber {
   position: relative;
-  height: 12px;
+  height: 18px;
   width: 100%;
   border: 1px solid rgba(237, 242, 253, 0.25);
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
 }
 .video-scrubber .scrubber-track {
   position: absolute;
   inset: 0;
   display: flex;
-  border-radius: 15px;
+  border-radius: 17px;
   overflow: hidden;
   pointer-events: none;
 }
@@ -124,6 +124,11 @@ button:focus-visible {
 }
 .video-comparison-controls .video-scrubber {
   border-color: rgba(237, 242, 253, 0.1);
+}
+.video-comparison-play-btn {
+  border-radius: 50% !important;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .video-scrubber input[type="range"]::-moz-range-track {
   background: transparent;
@@ -430,7 +435,7 @@ button:focus-visible {
   width: 100%;
   max-width: min(1000px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: clamp(20px, 4vw, 48px) clamp(12px, 2.5vw, 20px) 20px;
+  padding: clamp(72px, 12vh, 100px) clamp(12px, 2.5vw, 20px) 20px;
   position: relative;
   z-index: 1;
   box-sizing: border-box;
@@ -491,7 +496,7 @@ button:focus-visible {
   color: var(--color-light) !important;
   border-color: #ad64bf !important;
   min-width: 127px;
-  height: 52px;
+  height: 44px;
   padding: 0 20px;
   font-size: 0.8rem;
   font-weight: 400;

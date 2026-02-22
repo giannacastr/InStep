@@ -167,43 +167,49 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
         flex: 1,
         gap: '18px',
         minHeight: 0,
+        height: 'fit-content',
       }}
     >
-      {/* Left: videos + scrubber (mockup style) */}
+      {/* Left: videos + scrubber - fixed height based on aspect ratio */}
       <div className="video-comparison-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(237,242,253,0.07)' }}>
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            flex: 1,
             background: '#050d12',
+            aspectRatio: '1',
+            minHeight: 180,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(237,242,253,0.05)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(237,242,253,0.05)', background: '#050d12', minHeight: 0 }}>
             <div style={{ padding: '7px 14px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(237,242,253,0.38)', borderBottom: '1px solid rgba(237,242,253,0.04)' }}>
               Reference
             </div>
-            <video
-              ref={refVideoRef}
-              src={refUrl}
-              style={{ width: '100%', display: 'block', aspectRatio: '16/9', objectFit: 'cover', background: '#050d12' }}
-              muted
-              playsInline
-              crossOrigin="anonymous"
-            />
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <video
+                ref={refVideoRef}
+                src={refUrl}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#050d12', display: 'block' }}
+                muted
+                playsInline
+                crossOrigin="anonymous"
+              />
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', background: '#050d12', minHeight: 0 }}>
             <div style={{ padding: '7px 14px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(237,242,253,0.38)', borderBottom: '1px solid rgba(237,242,253,0.04)' }}>
               Your Practice
             </div>
-            <video
-              ref={pracVideoRef}
-              src={pracUrl}
-              style={{ width: '100%', display: 'block', aspectRatio: '16/9', objectFit: 'cover', background: '#050d12' }}
-              muted
-              playsInline
-              crossOrigin="anonymous"
-            />
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <video
+                ref={pracVideoRef}
+                src={pracUrl}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#050d12', display: 'block' }}
+                muted
+                playsInline
+                crossOrigin="anonymous"
+              />
+            </div>
           </div>
         </div>
 
@@ -250,6 +256,9 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
               style={{
                 width: 30,
                 height: 30,
+                minWidth: 30,
+                minHeight: 30,
+                aspectRatio: '1',
                 borderRadius: '50%',
                 border: 'none',
                 cursor: isReady ? 'pointer' : 'not-allowed',
@@ -257,6 +266,8 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
+                flex: '0 0 30px',
+                padding: 0,
                 background: 'linear-gradient(135deg, var(--color-purple), var(--color-teal))',
                 boxShadow: '0 0 14px rgba(68,187,164,0.3)',
                 opacity: isReady ? 1 : 0.5,
@@ -295,8 +306,8 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
         </div>
       </div>
 
-      {/* Right: accuracy + feedback (mockup style) */}
-      <div className="video-comparison-feedback" style={{ width: '220px', minWidth: '200px', maxWidth: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Right: accuracy + feedback - fixed height to match video column */}
+      <div className="video-comparison-feedback" style={{ width: '220px', minWidth: '200px', maxWidth: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', alignSelf: 'stretch' }}>
         {overallScore != null && (
           <div
             className="video-comparison-score-block"
@@ -328,7 +339,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             </div>
           </div>
         )}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ flex: 1, minHeight: 140, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {currentMove && (
             <MoveCard move={currentMove} darkBackground />
           )}
