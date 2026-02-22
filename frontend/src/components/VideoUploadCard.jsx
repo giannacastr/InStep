@@ -24,8 +24,8 @@ export default function VideoUploadCard({ title, file, onFileChange }) {
           </>
         ) : (
           <>
-            Reference clip — the example you're modeling or drawing inspiration
-            from. Upload the video you'd like to match or learn from.
+            The example you're modeling or drawing inspiration from. Upload
+            the video you'd like to match or learn from.
           </>
         )}
       </div>
