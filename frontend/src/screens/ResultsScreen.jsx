@@ -17,7 +17,7 @@ export default function ResultsScreen({ data, onTryAgain }) {
         <div className="results-page__logo">InStep</div>
 
         <div className="results-page__inner">
-        <p className="results-page__subtitle">Move-by-move analysis</p>
+        <p className="results-page__subtitle">Move-by-Move Analysis</p>
 
         {data?.ref_path && data?.prac_path && (
           <VideoComparisonView
