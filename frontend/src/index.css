@@ -509,7 +509,7 @@ button:focus-visible {
 }
 .results-page .results-page__logo {
   position: absolute;
-  top: 18px;
+  top: 40px;
   right: 0;
   padding-right: 28px;
   z-index: 10;
@@ -528,7 +528,7 @@ button:focus-visible {
   width: 100%;
   max-width: min(1000px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: clamp(72px, 12vh, 100px) clamp(12px, 2.5vw, 20px) 100px;
+  padding: clamp(94px, 14vh, 122px) clamp(12px, 2.5vw, 20px) 100px;
   position: relative;
   z-index: 1;
   box-sizing: border-box;
