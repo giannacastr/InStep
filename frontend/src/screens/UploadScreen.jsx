@@ -38,9 +38,28 @@ export default function UploadScreen({ onAnalyze }) {
           body: JSON.stringify({ ref_path: data.ref_path, prac_path: data.prac_path }),
         });
         const syncData = await syncRes.json();
-        if (onAnalyze) onAnalyze({ ...data, sync: syncData });
+        
+        setStatus("Analyzing movements...");
+        
+        let analysisData = null;
+        try {
+          const analysisRes = await fetch('http://127.0.0.1:8000/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              ref_path: data.ref_path, 
+              prac_path: data.prac_path,
+              offset: syncData.offset || 0
+            }),
+          });
+          analysisData = await analysisRes.json();
+        } catch (err) {
+          console.warn('Analysis endpoint not available:', err);
+        }
+        
+        if (onAnalyze) onAnalyze({ ...data, sync: syncData, analysis: analysisData });
       } catch {
-        if (onAnalyze) onAnalyze({ ...data, sync: { success: false, offset: 0 } });
+        if (onAnalyze) onAnalyze({ ...data, sync: { success: false, offset: 0 }, analysis: null });
       }
     } catch {
       setStatus("Error connecting to InStep backend.");
@@ -77,7 +96,7 @@ export default function UploadScreen({ onAnalyze }) {
         disabled={!refFile || !pracFile || isSubmitting}
         className="cta-button upload-page__analyze"
       >
-        {isSubmitting ? "Uploading & syncing…" : "Analyze"}
+        {isSubmitting ? "Analyzing..." : "Analyze"}
       </button>
     </div>
   );
