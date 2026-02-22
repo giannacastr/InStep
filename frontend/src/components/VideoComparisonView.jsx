@@ -13,7 +13,7 @@ function parseTimestampToSeconds(ts) {
   return parseFloat(s) || 0;
 }
 
-function buildSegments(moves, duration) {
+function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
   if (!moves?.length || duration <= 0) return [];
   const sorted = [...moves]
     .map((m) => ({ ...m, startSec: parseTimestampToSeconds(m.timestamp) }))
@@ -49,10 +49,19 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
   const isScrubbingRef = useRef(false);
   const scrubTimeoutRef = useRef(null);
 
+  const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1];
+
+  const handleIgnoreMove = (move) => {
+    setIgnoredMoveIds((prev) => new Set(prev).add(move.id));
+  };
+
   const refUrl = refPath ? `${API_BASE}/${refPath}` : null;
   const pracUrl = pracPath ? `${API_BASE}/${pracPath}` : null;
 
-  const segments = useMemo(() => buildSegments(moves, duration), [moves, duration]);
+  const segments = useMemo(
+    () => buildSegments(moves, duration, ignoredMoveIds),
+    [moves, duration, ignoredMoveIds]
+  );
 
   const currentMove = useMemo(() => {
     for (const seg of segments) {
@@ -98,6 +107,12 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
     refV.addEventListener('timeupdate', onTimeUpdate);
     return () => refV.removeEventListener('timeupdate', onTimeUpdate);
   }, [refUrl, pracUrl]);
+
+  // Apply playback speed to both videos
+  useEffect(() => {
+    if (refVideoRef.current) refVideoRef.current.playbackRate = playbackSpeed;
+    if (pracVideoRef.current) pracVideoRef.current.playbackRate = playbackSpeed;
+  }, [playbackSpeed, refUrl, pracUrl]);
 
   const handleScrubberChange = (e) => {
     const t = parseFloat(e.target.value);
