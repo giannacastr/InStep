@@ -29,7 +29,12 @@ function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
     if (start > prevEnd) {
       segments.push({ start: prevEnd, end: start, move: null, color: 'rgba(237, 242, 253, 0.2)' });
     }
-    segments.push({ start, end, move, color: move.match ? 'var(--color-teal)' : 'var(--color-purple)' });
+    const isIgnored = ignoredMoveIds.has(move.id);
+    if (isIgnored) {
+      segments.push({ start, end, move: null, color: 'rgba(237, 242, 253, 0.2)' });
+    } else {
+      segments.push({ start, end, move, color: move.match ? 'var(--color-teal)' : 'var(--color-purple)' });
+    }
     prevEnd = end;
   }
   if (prevEnd < duration) {
@@ -46,6 +51,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [ignoredMoveIds, setIgnoredMoveIds] = useState(() => new Set());
   const isScrubbingRef = useRef(false);
   const scrubTimeoutRef = useRef(null);
 
@@ -356,7 +362,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
         )}
         <div style={{ flex: 1, minHeight: 140, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {currentMove && (
-            <MoveCard move={currentMove} darkBackground />
+            <MoveCard move={currentMove} darkBackground onIgnore={handleIgnoreMove} />
           )}
           {!currentMove && (
             <p style={{ color: 'rgba(237,242,253,0.5)', fontSize: '13px', margin: 0 }}>
