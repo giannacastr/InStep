@@ -114,12 +114,6 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
     return () => refV.removeEventListener('timeupdate', onTimeUpdate);
   }, [refUrl, pracUrl]);
 
-  // Apply playback speed to both videos
-  useEffect(() => {
-    if (refVideoRef.current) refVideoRef.current.playbackRate = playbackSpeed;
-    if (pracVideoRef.current) pracVideoRef.current.playbackRate = playbackSpeed;
-  }, [playbackSpeed, refUrl, pracUrl]);
-
   const handleScrubberChange = (e) => {
     const t = parseFloat(e.target.value);
     if (scrubTimeoutRef.current) clearTimeout(scrubTimeoutRef.current);
@@ -134,10 +128,11 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
     }, 100);
   };
 
+  // Apply playback speed to both videos
   useEffect(() => {
     if (refVideoRef.current) refVideoRef.current.playbackRate = playbackRate;
     if (pracVideoRef.current) pracVideoRef.current.playbackRate = playbackRate;
-  }, [playbackRate]);
+  }, [playbackRate, refUrl, pracUrl]);
 
   const handlePlayPause = () => {
     const refV = refVideoRef.current;
@@ -301,7 +296,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
               )}
             </button>
             <div style={{ display: 'flex', gap: 3 }}>
-              {[0.5, 1, 1.5, 2].map((r) => (
+              {SPEED_OPTIONS.map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -318,7 +313,7 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
                     fontFamily: 'inherit',
                   }}
                 >
-                  {r}x
+                  {r}
                 </button>
               ))}
             </div>
