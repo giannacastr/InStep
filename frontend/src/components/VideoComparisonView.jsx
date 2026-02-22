@@ -33,7 +33,7 @@ function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
     if (isIgnored) {
       segments.push({ start, end, move: null, color: 'rgba(237, 242, 253, 0.2)' });
     } else {
-      // Color based on status: match=green, close/gray=gray, miss=red, gap=gray
+      // Color based on status: match=green, close=gray, miss=red, gap=gray
       const status = move.status || (move.match ? 'match' : 'miss');
       let color;
       if (status === 'match') {
@@ -88,13 +88,9 @@ export default function VideoComparisonView({ refPath, pracPath, sync, moves = [
   );
 
   const displayScore = useMemo(() => {
-    if (overallScore == null) return null;
-    if (!moves?.length) return overallScore;
-    const activeMoves = moves.filter((m) => !ignoredMoveIds.has(m.id));
-    if (!activeMoves.length) return 0;
-    const matched = activeMoves.filter((m) => m.match).length;
-    return Math.round((matched / activeMoves.length) * 100);
-  }, [moves, ignoredMoveIds, overallScore]);
+    // Use backend's overallScore directly (includes boost)
+    return overallScore;
+  }, [overallScore]);
 
   const currentMove = useMemo(() => {
     for (const seg of segments) {

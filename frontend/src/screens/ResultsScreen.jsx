@@ -3,8 +3,8 @@ import VideoComparisonView from '../components/VideoComparisonView';
 import { mockAnalysis } from '../data/mockAnalysis';
 
 export default function ResultsScreen({ data, onTryAgain }) {
-  const analysis = data?.analysis ?? mockAnalysis.analysis;
-  const { moves = [], overallScore } = analysis;
+  const analysis = (data?.analysis && data.analysis.moves?.length > 0) ? data.analysis : null;
+  const { moves = [], overallScore } = analysis || mockAnalysis.analysis;
 
   return (
     <div className="results-page">

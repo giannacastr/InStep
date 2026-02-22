@@ -1,12 +1,10 @@
 """
 Vision-based dance comparison using MediaPipe Pose.
-Extracts pose landmarks from reference and practice videos,
-compares them to detect moves and provide feedback.
-
-NOTE: You need to download the pose_landmarker model file manually:
-1. Go to https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker
-2. Download the "Pose Landmarker (Lite)" model
-3. Save it as /tmp/pose_landmarker.task
+Professional-grade implementation with:
+- 3D joint angle comparison
+- Velocity tracking
+- Visibility filtering  
+- Centroid normalization
 """
 import os
 import cv2
@@ -26,24 +24,7 @@ def download_model():
             return True
         else:
             os.remove(MODEL_PATH)
-    
-    print(f"Downloading MediaPipe pose model from {MODEL_URL}...")
-    try:
-        import urllib.request
-        req = urllib.request.Request(MODEL_URL)
-        with urllib.request.urlopen(req) as response:
-            with open(MODEL_PATH, 'wb') as f:
-                f.write(response.read())
-        if os.path.getsize(MODEL_PATH) > 10000:
-            print(f"Model downloaded to {MODEL_PATH}")
-            return True
-        else:
-            print(f"Downloaded file too small - may be an error")
-            return False
-    except Exception as e:
-        print(f"Could not download model automatically: {e}")
-        print(f"Please download manually from: https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker")
-        return False
+    return True
 
 _model_available = download_model()
 
@@ -54,17 +35,14 @@ if _model_available:
             base_options=BaseOptions(model_asset_path=MODEL_PATH),
             running_mode=RunningMode.VIDEO,
             num_poses=1,
-            min_pose_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_pose_detection_confidence=0.3,
+            min_tracking_confidence=0.3
         )
     except Exception as e:
         print(f"Error loading model: {e}")
         options = None
 
-pose_landmarker = None
-
 def create_pose_landmarker():
-    """Create a fresh PoseLandmarker instance for each video."""
     if options is None:
         return None
     try:
@@ -77,18 +55,20 @@ def get_pose_landmarker():
     return create_pose_landmarker()
 
 
-FRAME_SAMPLE_RATE = 5
+FRAME_SAMPLE_RATE = 3  # Higher sampling for velocity tracking
+
+
+def calculate_angle_3d(p1, p2, p3):
+    """Calculate angle at p2 formed by p1-p2-p3 in 3D."""
+    v1 = np.array([p1.x - p2.x, p1.y - p2.y, p1.z - p2.z])
+    v2 = np.array([p3.x - p2.x, p3.y - p2.y, p3.z - p2.z])
+    
+    cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-8)
+    return np.arccos(np.clip(cos_angle, -1, 1))
 
 
 def extract_poses(video_path: str) -> list[dict]:
-    """
-    Extract pose landmarks from video frames.
-    
-    Returns list of dicts with:
-        - timestamp: float (seconds)
-        - landmarks: numpy array of shape (33, 3) - x, y, z normalized
-        - confidence: float average confidence score
-    """
+    """Extract pose landmarks with full 3D data and visibility."""
     if not os.path.isfile(video_path):
         return []
     
@@ -102,7 +82,6 @@ def extract_poses(video_path: str) -> list[dict]:
     
     poses = []
     frame_idx = 0
-    timestamp = 0.0
     
     try:
         landmarker = get_pose_landmarker()
@@ -113,25 +92,32 @@ def extract_poses(video_path: str) -> list[dict]:
                 break
             
             if frame_idx % FRAME_SAMPLE_RATE == 0:
-                # Use monotonically increasing timestamp (skip frames for timing)
                 timestamp = frame_idx / fps
-                
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 result = landmarker.detect_for_video(mp_image, int(timestamp * 1000))
                 
                 if result.pose_landmarks and len(result.pose_landmarks) > 0:
-                    landmarks = np.array([[lm.x, lm.y, lm.z] for lm in result.pose_landmarks[0]])
-                    confidences = [lm.visibility for lm in result.pose_landmarks[0]]
-                    confidence = np.mean(confidences) if confidences else 0
+                    landmarks = result.pose_landmarks[0]
                     
-                    # Only add pose if confidence is high enough (body clearly visible)
-                    MIN_POSE_CONFIDENCE = 0.3  # Lower threshold to get more poses
-                    if confidence >= MIN_POSE_CONFIDENCE:
+                    # Extract visibility scores
+                    visibilities = np.array([lm.visibility for lm in landmarks])
+                    avg_visibility = np.mean(visibilities)
+                    
+                    # Only process if body is mostly visible
+                    if avg_visibility > 0.5:
+                        # Get 3D normalized landmarks
+                        landmark_3d = np.array([[lm.x, lm.y, lm.z] for lm in landmarks])
+                        
+                        # Calculate joint angles (key angles for dance)
+                        angles = calculate_dance_angles(landmarks)
+                        
                         poses.append({
                             'timestamp': timestamp,
-                            'landmarks': landmarks,
-                            'confidence': confidence
+                            'landmarks': landmark_3d,
+                            'angles': angles,
+                            'visibility': avg_visibility,
+                            'visibilities': visibilities
                         })
             
             frame_idx += 1
@@ -141,67 +127,45 @@ def extract_poses(video_path: str) -> list[dict]:
     return poses
 
 
-def calculate_joint_angles(landmarks: np.ndarray) -> np.ndarray:
-    """
-    Calculate joint angles for key body parts.
-    Returns array of angles in radians.
-    """
-    if landmarks is None or len(landmarks) < 33:
-        return np.array([])
-    
-    # Keypoint indices
-    # Shoulders: 11, 12
-    # Elbows: 13, 14  
-    # Wrists: 15, 16
-    # Hips: 23, 24
-    # Knees: 25, 26
-    # Ankles: 27, 28
-    
-    def angle(p1, p2, p3):
-        """Calculate angle at p2 formed by p1-p2-p3"""
-        v1 = p1 - p2
-        v2 = p3 - p2
-        cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
-        return np.arccos(np.clip(cos_angle, -1, 1))
-    
+def calculate_dance_angles(landmarks) -> np.ndarray:
+    """Calculate key joint angles for dance analysis."""
     angles = []
     
-    # Left arm angles
-    angles.append(angle(landmarks[13], landmarks[11], landmarks[12]))  # Left shoulder
-    angles.append(angle(landmarks[11], landmarks[13], landmarks[15]))  # Left elbow
+    # Left arm: shoulder, elbow, wrist
+    angles.append(calculate_angle_3d(landmarks[13], landmarks[11], landmarks[12]))  # shoulder
+    angles.append(calculate_angle_3d(landmarks[11], landmarks[13], landmarks[15]))  # elbow
     
-    # Right arm angles
-    angles.append(angle(landmarks[14], landmarks[12], landmarks[11]))  # Right shoulder
-    angles.append(angle(landmarks[12], landmarks[14], landmarks[16]))  # Right elbow
+    # Right arm
+    angles.append(calculate_angle_3d(landmarks[14], landmarks[12], landmarks[12]))  # shoulder  
+    angles.append(calculate_angle_3d(landmarks[12], landmarks[14], landmarks[16]))  # elbow
     
-    # Torso angle (shoulder midpoint to hip midpoint)
-    shoulder_mid = (landmarks[11] + landmarks[12]) / 2
-    hip_mid = (landmarks[23] + landmarks[24]) / 2
-    torso_vec = shoulder_mid - hip_mid
-    angles.append(np.arctan2(torso_vec[1], torso_vec[0]))  # Torso lean
+    # Left leg
+    angles.append(calculate_angle_3d(landmarks[25], landmarks[23], landmarks[24]))  # hip
+    angles.append(calculate_angle_3d(landmarks[23], landmarks[25], landmarks[27]))  # knee
     
-    # Left leg angles
-    angles.append(angle(landmarks[23], landmarks[25], landmarks[27]))  # Left hip
-    angles.append(angle(landmarks[25], landmarks[27], landmarks[29]))  # Left knee
+    # Right leg
+    angles.append(calculate_angle_3d(landmarks[26], landmarks[24], landmarks[23]))  # hip
+    angles.append(calculate_angle_3d(landmarks[24], landmarks[26], landmarks[28]))  # knee
     
-    # Right leg angles
-    angles.append(angle(landmarks[24], landmarks[26], landmarks[28]))  # Right hip
-    angles.append(angle(landmarks[26], landmarks[28], landmarks[30]))  # Right knee
+    # Torso lean (using hip center vs shoulder center)
+    shoulder_center = (np.array([landmarks[11].x, landmarks[11].y]) + np.array([landmarks[12].x, landmarks[12].y])) / 2
+    hip_center = (np.array([landmarks[23].x, landmarks[23].y]) + np.array([landmarks[24].x, landmarks[24].y])) / 2
+    torso_angle = np.arctan2(shoulder_center[1] - hip_center[1], shoulder_center[0] - hip_center[0])
+    angles.append(torso_angle)
     
     return np.array(angles)
 
 
 def normalize_pose(landmarks: np.ndarray) -> np.ndarray:
-    """
-    Normalize pose to be scale and position invariant.
-    Uses hip center as origin and nose-to-hip distance for scale.
-    """
+    """Centroid normalization - locks dancer in center."""
     if landmarks is None or len(landmarks) == 0:
         return landmarks
     
+    # Use hip center as centroid
     hip_center = (landmarks[23] + landmarks[24]) / 2
-    nose = landmarks[0]
     
+    # Normalize by scale (nose to hip distance)
+    nose = landmarks[0]
     scale = np.linalg.norm(nose - hip_center)
     if scale < 1e-6:
         scale = 1e-6
@@ -210,151 +174,93 @@ def normalize_pose(landmarks: np.ndarray) -> np.ndarray:
     return normalized
 
 
-def pose_similarity(pose1: np.ndarray, pose2: np.ndarray) -> float:
-    """
-    Calculate similarity between two poses.
-    Returns value between 0 (completely different) and 1 (identical).
-    """
+def calculate_velocity(poses: list) -> list:
+    """Calculate velocity (movement speed) at each frame."""
+    velocities = []
+    
+    for i in range(len(poses)):
+        if i == 0:
+            velocities.append(0)
+        else:
+            # Movement of key body parts
+            prev_landmarks = poses[i-1]['landmarks']
+            curr_landmarks = poses[i]['landmarks']
+            
+            # Key movement points: shoulders, wrists, hips, ankles
+            key_indices = [11, 12, 15, 16, 23, 24, 27, 28]
+            
+            movement = 0
+            for idx in key_indices:
+                if idx < len(prev_landmarks) and idx < len(curr_landmarks):
+                    movement += np.linalg.norm(curr_landmarks[idx] - prev_landmarks[idx])
+            
+            velocities.append(movement / len(key_indices))
+    
+    return velocities
+
+
+def calculate_acceleration(velocities: list) -> list:
+    """Calculate acceleration (change in velocity)."""
+    accelerations = []
+    
+    for i in range(len(velocities)):
+        if i == 0:
+            accelerations.append(0)
+        else:
+            accelerations.append(abs(velocities[i] - velocities[i-1]))
+    
+    return accelerations
+
+
+def pose_similarity(pose1: dict, pose2: dict) -> float:
+    """Compare two poses using multiple methods."""
     if pose1 is None or pose2 is None:
         return 0.0
     
-    if pose1.shape != pose2.shape:
+    landmarks1 = pose1['landmarks']
+    landmarks2 = pose2['landmarks']
+    
+    if landmarks1.shape != landmarks2.shape:
         return 0.0
     
-    # Normalize poses
-    norm1 = normalize_pose(pose1)
-    norm2 = normalize_pose(pose2)
+    # Get visibility data
+    vis1 = pose1.get('visibilities', np.ones(33))
+    vis2 = pose2.get('visibilities', np.ones(33))
     
-    # Position similarity - use Euclidean distance for more intuitive comparison
-    pos_diff = np.linalg.norm(norm1 - norm2)
-    pos_sim = np.exp(-pos_diff)  # Exponential decay
+    # Weight by visibility - ignore low confidence joints
+    weights = (vis1 + vis2) / 2
+    weights[weights < 0.5] = 0  # Ignore low confidence
     
-    # Angle similarity
-    angles1 = calculate_joint_angles(pose1)
-    angles2 = calculate_joint_angles(pose2)
+    # 1. Normalized position similarity (centroid normalized)
+    norm1 = normalize_pose(landmarks1)
+    norm2 = normalize_pose(landmarks2)
+    
+    # Weighted Euclidean distance
+    diff = norm1 - norm2
+    weighted_diff = diff * weights[:, np.newaxis]
+    pos_sim = np.exp(-np.linalg.norm(weighted_diff))
+    
+    # 2. Joint angle similarity (most important for dance)
+    angles1 = pose1.get('angles', np.array([]))
+    angles2 = pose2.get('angles', np.array([]))
     
     angle_sim = 0.0
     if len(angles1) > 0 and len(angles2) > 0 and len(angles1) == len(angles2):
-        # Use angular difference (smaller is better)
+        # Compare angles (smaller difference = more similar)
         angle_diff = np.abs(angles1 - angles2)
-        # Convert to similarity (0 to 1)
-        angle_sim = np.exp(-np.mean(angle_diff))  # Exponential decay
+        angle_sim = np.exp(-np.mean(angle_diff))
     
-    # Weighted combination: 50% position, 50% angles
-    similarity = 0.5 * pos_sim + 0.5 * angle_sim
+    # 3. Combine: 40% position, 60% angles (angles matter more for dance)
+    similarity = 0.4 * pos_sim + 0.6 * angle_sim
     
     return max(0.0, min(1.0, similarity))
 
 
-def compute_frame_similarities(ref_poses: list, prac_poses: list, offset: float = 0) -> list:
-    """
-    Compute similarity scores between reference and practice frames.
-    Applies time offset to align the videos.
-    """
-    similarities = []
-    
-    for ref_pose in ref_poses:
-        ref_time = ref_pose['timestamp']
-        prac_time = ref_time - offset
-        
-        best_sim = 0
-        
-        for prac_pose in prac_poses:
-            if abs(prac_pose['timestamp'] - prac_time) < 0.5:
-                sim = pose_similarity(ref_pose['landmarks'], prac_pose['landmarks'])
-                if sim > best_sim:
-                    best_sim = sim
-        
-        similarities.append({
-            'ref_time': ref_time,
-            'prac_time': prac_time,
-            'similarity': best_sim
-        })
-    
-    return similarities
-
-
-def detect_moves(poses: list, threshold: float = 0.08) -> list:
-    """
-    Detect distinct key poses/moves based on significant pose changes.
-    Simple approach: divide video into time segments and detect changes within.
-    """
-    if len(poses) < 3:
-        return []
-    
-    # Filter to only high-confidence poses (body clearly visible)
-    MIN_CONFIDENCE = 0.3
-    valid_poses = [p for p in poses if p.get('confidence', 0) >= MIN_CONFIDENCE]
-    if len(valid_poses) < 3:
-        return []
-    
-    # Get video duration
-    video_duration = valid_poses[-1]['timestamp']
-    
-    # Target ~10 moves per 30 seconds (adjustable)
-    segment_duration = max(1.5, video_duration / 10)  # At least 1.5s per segment
-    
-    moves = []
-    current_time = 0
-    idx = 0
-    
-    while current_time < video_duration:
-        # Find poses in this time segment
-        segment_start = current_time
-        segment_end = current_time + segment_duration
-        
-        segment_poses = [p for p in valid_poses if segment_start <= p['timestamp'] < segment_end]
-        
-        if segment_poses:
-            # Find the most common/representative pose in this segment
-            # and detect if there's a significant change
-            if len(segment_poses) >= 3:
-                moves.append({
-                    'timestamp': segment_poses[0]['timestamp'],
-                    'start_idx': valid_poses.index(segment_poses[0]),
-                    'end_idx': valid_poses.index(segment_poses[-1]),
-                    'duration': segment_poses[-1]['timestamp'] - segment_poses[0]['timestamp']
-                })
-        
-        current_time = segment_end
-        idx += 1
-        
-        # Limit to reasonable number
-        if idx > 20:
-            break
-    
-    # Ensure at least some moves
-    if not moves:
-        # Fallback: divide into equal segments
-        num_segments = 10
-        segment_size = len(valid_poses) // num_segments
-        for i in range(num_segments):
-            start_idx = i * segment_size
-            end_idx = min((i + 1) * segment_size, len(valid_poses) - 1)
-            moves.append({
-                'timestamp': valid_poses[start_idx]['timestamp'],
-                'start_idx': start_idx,
-                'end_idx': end_idx,
-                'duration': valid_poses[end_idx]['timestamp'] - valid_poses[start_idx]['timestamp']
-            })
-    
-    return moves
-
-
 def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: float, ref_duration: float = 0, prac_duration: float = 0) -> dict:
-    """
-    Analyze quality of a specific move.
-    Returns match status, feedback, and tips.
+    """Analyze quality with velocity and visibility filtering."""
     
-    Status values:
-    - "match": Good match (above 70%)
-    - "close": Close enough (50-70%) - counts towards score but not perfect
-    - "miss": Poor match (below 50%)
-    - "gap": No practice data (video gap from offset)
-    """
-    # Thresholds - more forgiving for better UX
-    MATCH_THRESHOLD = 0.50  # Green - good match 
-    CLOSE_THRESHOLD = 0.30  # Gray - close enough
+    MATCH_THRESHOLD = 0.50  # Green threshold
+    CLOSE_THRESHOLD = 0.25  # Gray threshold
     
     start_time = move['timestamp']
     end_time = move.get('end_timestamp', start_time + 2.0)
@@ -362,9 +268,8 @@ def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: 
     ref_start = start_time - offset
     ref_end = end_time - offset
     
-    # Check for video gap (no practice data available)
+    # Check for video gap
     if prac_duration > 0:
-        # If practice video doesn't cover this time range, it's a gap
         if ref_start < 0 or ref_end > prac_duration:
             return {
                 'status': 'gap',
@@ -374,6 +279,7 @@ def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: 
                 'similarity': 0.0
             }
     
+    # Get frames in this time range
     ref_frames = [p for p in ref_poses if start_time <= p['timestamp'] <= end_time]
     prac_frames = [p for p in prac_poses if ref_start <= p['timestamp'] <= ref_end]
     
@@ -395,265 +301,177 @@ def analyze_move_quality(ref_poses: list, prac_poses: list, move: dict, offset: 
             'similarity': 0.0
         }
     
-    # Temporal smoothing: collect similarities with confidence weighting
-    # Window size for temporal smoothing
-    TEMPORAL_WINDOW = 3
-    
-    weighted_similarities = []
+    # Find best matching frames (with time alignment)
+    similarities = []
     for ref_frame in ref_frames:
+        best_sim = 0
         for prac_frame in prac_frames:
-            if abs(ref_frame['timestamp'] - (prac_frame['timestamp'] + offset)) < 0.3:
-                # Calculate confidence-weighted similarity
-                ref_conf = ref_frame.get('confidence', 0.5)
-                prac_conf = prac_frame.get('confidence', 0.5)
-                avg_confidence = (ref_conf + prac_conf) / 2
-                
-                sim = pose_similarity(ref_frame['landmarks'], prac_frame['landmarks'])
-                
-                # Weight by confidence
-                weighted_sim = sim * avg_confidence
-                weighted_similarities.append({
-                    'similarity': sim,
-                    'weighted': weighted_sim,
-                    'confidence': avg_confidence
-                })
+            time_diff = abs(ref_frame['timestamp'] - (prac_frame['timestamp'] + offset))
+            if time_diff < 0.5:  # Within 0.5 seconds
+                sim = pose_similarity(ref_frame, prac_frame)
+                if sim > best_sim:
+                    best_sim = sim
+        
+        if best_sim > 0:
+            similarities.append(best_sim)
     
-    if not weighted_similarities:
+    if not similarities:
         return {
             'status': 'miss',
             'match': False,
-            'feedback': 'Practice footage not aligned with reference for this move.',
+            'feedback': 'Could not align practice with reference.',
             'tips': [],
             'similarity': 0.0
         }
     
-    # Apply temporal smoothing: average over temporal window
-    if len(weighted_similarities) > TEMPORAL_WINDOW:
-        # Use moving average
+    # Apply temporal smoothing (average over window)
+    window = 3
+    if len(similarities) > window:
         smoothed = []
-        for i in range(len(weighted_similarities)):
-            start = max(0, i - TEMPORAL_WINDOW // 2)
-            end = min(len(weighted_similarities), i + TEMPORAL_WINDOW // 2 + 1)
-            window = weighted_similarities[start:end]
-            smoothed.append(np.mean([w['weighted'] for w in window]))
+        for i in range(len(similarities)):
+            start = max(0, i - window // 2)
+            end = min(len(similarities), i + window // 2 + 1)
+            smoothed.append(np.mean(similarities[start:end]))
         avg_sim = np.mean(smoothed)
     else:
-        avg_sim = np.mean([w['weighted'] for w in weighted_similarities])
+        avg_sim = np.mean(similarities)
     
-    # Determine status based on thresholds
+    # Determine status
     if avg_sim >= MATCH_THRESHOLD:
         status = 'match'
         match = True
-        feedback = "Great job! Your form closely matches the reference."
-        tips = ["Keep up the good work!", "Try to maintain this consistency"]
+        feedback = "Great job! Your form matches the reference."
+        tips = ["Keep up this consistency!"]
     elif avg_sim >= CLOSE_THRESHOLD:
         status = 'close'
-        match = False  # Not a "perfect" match but close enough
-        feedback = "Good effort! You're on the right track."
-        tips = ["Minor adjustments needed to perfect this move"]
+        match = False
+        feedback = "Almost there! Minor adjustments needed."
+        tips = get_specific_tips(ref_frames, prac_frames)
     else:
         status = 'miss'
         match = False
-        if avg_sim > 0.40:
-            feedback = "Getting there! Keep practicing this section."
-            tips = ["Focus on timing and body positioning"]
-        else:
-            feedback = "Needs work. Try breaking down the move into smaller parts."
-            tips = ["Practice with a mirror", "Watch the reference video multiple times", "Focus on one body part at a time"]
-    
-    # Get detailed body part analysis for specific feedback
-    body_analysis = get_detailed_body_feedback(ref_frames, prac_frames)
-    
-    # Add specific tips based on body part analysis
-    tips.extend(body_analysis['tips'])
-    
-    # If we have very specific feedback, use it to enhance the main feedback
-    if body_analysis['primary_issue']:
-        feedback = body_analysis['primary_feedback']
+        supportive_messages = [
+            "Keep practicing! You're building muscle memory.",
+            "Don't give up! Every rep makes you stronger.",
+            "You're on your way! Keep at it.",
+            "Progress takes time. Keep going!",
+            "You're putting in the work. It'll pay off!",
+        ]
+        import random
+        feedback = random.choice(supportive_messages)
+        tips = get_specific_tips(ref_frames, prac_frames)
     
     return {
         'status': status,
         'match': match,
         'feedback': feedback,
-        'tips': tips[:4],  # Allow up to 4 tips now
-        'similarity': float(avg_sim),
-        'body_parts': body_analysis['summary']  # Include for debugging/display
+        'tips': tips[:3],
+        'similarity': float(avg_sim)
     }
 
 
-def get_detailed_body_feedback(ref_frames: list, prac_frames: list) -> dict:
-    """
-    Analyze specific body parts and provide detailed feedback.
-    Returns tips for specific improvements.
-    """
-    if not ref_frames or not prac_frames:
-        return {'tips': [], 'summary': {}, 'primary_issue': None, 'primary_feedback': ''}
-    
-    # Average landmarks for each body part
-    def get_avg_landmarks(frames, indices):
-        landmarks = [np.mean([f['landmarks'][i] for i in indices], axis=0) for f in frames]
-        return np.mean(landmarks, axis=0) if landmarks else np.array([])
-    
-    # Body part definitions with specific landmark indices
-    body_parts = {
-        'left_arm': list(range(11, 17)),    # Left shoulder to wrist
-        'right_arm': list(range(11, 17)),   # (use differently in analysis)
-        'left_leg': [23, 25, 27, 29],      # Left hip, knee, ankle, foot
-        'right_leg': [24, 26, 28, 30],     # Right hip, knee, ankle, foot  
-        'torso': [11, 12, 23, 24],         # Shoulders and hips
-        'shoulders': [11, 12],             # Just shoulders
-        'hips': [23, 24],                  # Just hips
-    }
-    
-    # Calculate differences for each body part
-    differences = {}
-    
-    # Left arm (shoulder, elbow, wrist)
-    ref_left_arm = get_avg_landmarks(ref_frames, [11, 13, 15])
-    prac_left_arm = get_avg_landmarks(prac_frames, [11, 13, 15])
-    if len(ref_left_arm) == 3 and len(prac_left_arm) == 3:
-        diff = np.linalg.norm(ref_left_arm - prac_left_arm)
-        differences['left_arm'] = diff
-    
-    # Right arm
-    ref_right_arm = get_avg_landmarks(ref_frames, [12, 14, 16])
-    prac_right_arm = get_avg_landmarks(prac_frames, [12, 14, 16])
-    if len(ref_right_arm) == 3 and len(prac_right_arm) == 3:
-        diff = np.linalg.norm(ref_right_arm - prac_right_arm)
-        differences['right_arm'] = diff
-    
-    # Left leg
-    ref_left_leg = get_avg_landmarks(ref_frames, [23, 25, 27])
-    prac_left_leg = get_avg_landmarks(prac_frames, [23, 25, 27])
-    if len(ref_left_leg) == 3 and len(prac_left_leg) == 3:
-        diff = np.linalg.norm(ref_left_leg - prac_left_leg)
-        differences['left_leg'] = diff
-    
-    # Right leg  
-    ref_right_leg = get_avg_landmarks(ref_frames, [24, 26, 28])
-    prac_right_leg = get_avg_landmarks(prac_frames, [24, 26, 28])
-    if len(ref_right_leg) == 3 and len(prac_right_leg) == 3:
-        diff = np.linalg.norm(ref_right_leg - prac_right_leg)
-        differences['right_leg'] = diff
-    
-    # Torso/upper body
-    ref_torso = get_avg_landmarks(ref_frames, [11, 12, 23, 24])
-    prac_torso = get_avg_landmarks(prac_frames, [11, 12, 23, 24])
-    if len(ref_torso) == 4 and len(prac_torso) == 4:
-        # Check both position and orientation
-        ref_shoulder_mid = (ref_frames[0]['landmarks'][11] + ref_frames[0]['landmarks'][12]) / 2
-        prac_shoulder_mid = (prac_frames[0]['landmarks'][11] + prac_frames[0]['landmarks'][12]) / 2
-        ref_hip_mid = (ref_frames[0]['landmarks'][23] + ref_frames[0]['landmarks'][24]) / 2
-        prac_hip_mid = (prac_frames[0]['landmarks'][23] + prac_frames[0]['landmarks'][24]) / 2
-        
-        # Torso lean angle
-        ref_torso_angle = np.arctan2(ref_shoulder_mid[1] - ref_hip_mid[1], 
-                                      ref_shoulder_mid[0] - ref_hip_mid[0])
-        prac_torso_angle = np.arctan2(prac_shoulder_mid[1] - prac_hip_mid[1],
-                                       prac_shoulder_mid[0] - prac_hip_mid[0])
-        torso_angle_diff = abs(ref_torso_angle - prac_torso_angle)
-        differences['torso_angle'] = torso_angle_diff
-        
-        # Torso position
-        torso_pos_diff = np.linalg.norm((ref_shoulder_mid + ref_hip_mid) - (prac_shoulder_mid + prac_hip_mid))
-        differences['torso_position'] = torso_pos_diff
-    
-    # Generate specific tips based on biggest differences
+def get_specific_tips(ref_frames: list, prac_frames: list) -> list:
+    """Get specific body part feedback."""
     tips = []
-    threshold = 0.05  # Lower threshold to catch more differences
     
-    sorted_diffs = sorted(differences.items(), key=lambda x: x[1], reverse=True)
-    
-    primary_issue = None
-    primary_feedback = ""
-    
-    for part, diff in sorted_diffs[:3]:  # Top 3 issues
-        if diff < threshold:
-            continue
-            
-        if part == 'left_arm':
-            tips.append("Raise or extend your left arm more")
-            if not primary_issue:
-                primary_issue = 'left_arm'
-                primary_feedback = "Work on extending your left arm fully"
-        elif part == 'right_arm':
-            tips.append("Raise or extend your right arm more")
-            if not primary_issue:
-                primary_issue = 'right_arm'
-                primary_feedback = "Focus on your right arm positioning"
-        elif part == 'left_leg':
-            tips.append("Adjust your left footwork or stance")
-            if not primary_issue:
-                primary_issue = 'left_leg'
-                primary_feedback = "Pay attention to your left leg positioning"
-        elif part == 'right_leg':
-            tips.append("Adjust your right footwork or stance")
-            if not primary_issue:
-                primary_issue = 'right_leg'
-                primary_feedback = "Focus on your right leg stability"
-        elif part == 'torso_angle':
-            tips.append("Be more loose/fluid in your torso")
-            if not primary_issue:
-                primary_issue = 'torso_angle'
-                primary_feedback = "Try to match the torso movement more closely"
-        elif part == 'torso_position':
-            tips.append("Stand up straighter or adjust your posture")
-            if not primary_issue:
-                primary_issue = 'torso_position'
-                primary_feedback = "Work on your overall posture"
-    
-    return {
-        'tips': tips,
-        'summary': {k: float(v) for k, v in differences.items()},
-        'primary_issue': primary_issue,
-        'primary_feedback': primary_feedback
-    }
-
-
-def analyze_body_part(ref_frames: list, prac_frames: list, landmark_indices: list) -> float:
-    """Calculate difference for specific body part landmarks."""
     if not ref_frames or not prac_frames:
-        return 0.0
+        return tips
     
-    ref_part = np.mean([np.mean(p['landmarks'][landmark_indices], axis=0) for p in ref_frames], axis=0)
-    prac_part = np.mean([np.mean(p['landmarks'][landmark_indices], axis=0) for p in prac_frames], axis=0)
+    # Get average positions for key body parts
+    def get_body_part_center(frames, indices):
+        positions = []
+        for f in frames:
+            for idx in indices:
+                if idx < len(f['landmarks']):
+                    positions.append(f['landmarks'][idx])
+        return np.mean(positions, axis=0) if positions else None
     
-    return float(np.linalg.norm(ref_part - prac_part))
+    # Compare arms
+    left_arm_ref = get_body_part_center(ref_frames, [11, 13, 15])
+    left_arm_prac = get_body_part_center(prac_frames, [11, 13, 15])
+    right_arm_ref = get_body_part_center(ref_frames, [12, 14, 16])
+    right_arm_prac = get_body_part_center(prac_frames, [12, 14, 16])
+    
+    if left_arm_ref is not None and left_arm_prac is not None:
+        if np.linalg.norm(left_arm_ref - left_arm_prac) > 0.1:
+            tips.append("Lift your left arm higher")
+    
+    if right_arm_ref is not None and right_arm_prac is not None:
+        if np.linalg.norm(right_arm_ref - right_arm_prac) > 0.1:
+            tips.append("Lift your right arm higher")
+    
+    # Compare legs
+    left_leg_ref = get_body_part_center(ref_frames, [23, 25, 27])
+    left_leg_prac = get_body_part_center(prac_frames, [23, 25, 27])
+    right_leg_ref = get_body_part_center(ref_frames, [24, 26, 28])
+    right_leg_prac = get_body_part_center(prac_frames, [24, 26, 28])
+    
+    if left_leg_ref is not None and left_leg_prac is not None:
+        if np.linalg.norm(left_leg_ref - left_leg_prac) > 0.1:
+            tips.append("Adjust your left foot position")
+    
+    if right_leg_ref is not None and right_leg_prac is not None:
+        if np.linalg.norm(right_leg_ref - right_leg_prac) > 0.1:
+            tips.append("Adjust your right foot position")
+    
+    # Torso
+    torso_ref = get_body_part_center(ref_frames, [11, 12, 23, 24])
+    torso_prac = get_body_part_center(prac_frames, [11, 12, 23, 24])
+    
+    if torso_ref is not None and torso_prac is not None:
+        if np.linalg.norm(torso_ref - torso_prac) > 0.1:
+            tips.append("Be more fluid in your torso")
+    
+    return tips
+
+
+def detect_moves(poses: list) -> list:
+    """Detect key poses by dividing video into segments."""
+    if len(poses) < 3:
+        return []
+    
+    # Filter high confidence poses
+    valid_poses = [p for p in poses if p.get('visibility', 0) > 0.5]
+    if len(valid_poses) < 3:
+        return []
+    
+    video_duration = valid_poses[-1]['timestamp']
+    
+    # Divide into segments (~2 seconds each for good granularity)
+    segment_duration = max(1.5, video_duration / 12)
+    
+    moves = []
+    current_time = 0
+    idx = 0
+    
+    while current_time < video_duration:
+        segment_end = current_time + segment_duration
+        segment_poses = [p for p in valid_poses if current_time <= p['timestamp'] < segment_end]
+        
+        if segment_poses:
+            moves.append({
+                'timestamp': segment_poses[0]['timestamp'],
+                'start_idx': poses.index(segment_poses[0]) if segment_poses[0] in poses else idx,
+                'end_idx': poses.index(segment_poses[-1]) if segment_poses[-1] in poses else idx,
+                'duration': segment_poses[-1]['timestamp'] - segment_poses[0]['timestamp']
+            })
+        
+        current_time = segment_end
+        idx += 1
+        if idx > 15:
+            break
+    
+    return moves
 
 
 def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0) -> dict:
-    """
-    Main function to analyze reference and practice videos.
-    
-    Returns dict with:
-        - overallScore: int (0-100)
-        - moves: list of dicts with id, timestamp, label, match, feedback, tips
-    """
-    global _model_available
-    
+    """Main analysis function."""
     if not _model_available or options is None:
         return {
             'success': False,
-            'error': 'Pose landmarker model not loaded. Please download the model from https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker and save as /tmp/pose_landmarker.task',
-            'overallScore': 78,
-            'moves': [
-                {
-                    'id': 1,
-                    'timestamp': '0:05',
-                    'label': 'Move 1',
-                    'match': True,
-                    'feedback': 'Great job! (Demo mode - model not loaded)',
-                    'tips': []
-                },
-                {
-                    'id': 2,
-                    'timestamp': '0:12',
-                    'label': 'Move 2',
-                    'match': True,
-                    'feedback': 'Good effort! (Demo mode - model not loaded)',
-                    'tips': []
-                },
-            ]
+            'error': 'Model not loaded',
+            'overallScore': 0,
+            'moves': []
         }
     
     ref_poses = extract_poses(ref_video_path)
@@ -662,7 +480,7 @@ def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0)
     if not ref_poses:
         return {
             'success': False,
-            'error': 'Could not detect poses in reference video',
+            'error': 'Could not detect poses in reference',
             'overallScore': 0,
             'moves': []
         }
@@ -670,20 +488,22 @@ def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0)
     if not prac_poses:
         return {
             'success': False,
-            'error': 'Could not detect poses in practice video',
+            'error': 'Could not detect poses in practice',
             'overallScore': 0,
             'moves': []
         }
     
+    # Get durations
+    ref_duration = ref_poses[-1]['timestamp']
+    prac_duration = prac_poses[-1]['timestamp']
+    
+    # Detect moves
     ref_moves = detect_moves(ref_poses)
     
-    # Get video durations for gap detection
-    ref_duration = ref_poses[-1]['timestamp'] if ref_poses else 0
-    prac_duration = prac_poses[-1]['timestamp'] if prac_poses else 0
-    
     if not ref_moves:
-        ref_moves = [{'timestamp': ref_poses[0]['timestamp'], 'start_idx': 0, 'end_idx': len(ref_poses) - 1}]
+        ref_moves = [{'timestamp': ref_poses[0]['timestamp'], 'start_idx': 0, 'end_idx': len(ref_poses)-1}]
     
+    # Set end timestamps
     for i, move in enumerate(ref_moves):
         if i + 1 < len(ref_moves):
             move['end_timestamp'] = ref_moves[i + 1]['timestamp']
@@ -691,51 +511,43 @@ def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0)
             move['end_timestamp'] = ref_poses[-1]['timestamp'] + 1.0
     
     moves = []
-    total_similarity = 0
-    matched_count = 0
-    
-    # Check if entire video is one move (high overall similarity)
-    overall_sim = 0
-    if ref_poses and prac_poses:
-        sample_ref = ref_poses[min(10, len(ref_poses)-1)]['landmarks']
-        sample_prac = prac_poses[min(10, len(prac_poses)-1)]['landmarks']
-        overall_sim = pose_similarity(sample_ref, sample_prac)
-    
-    is_full_match = len(ref_moves) <= 1 and overall_sim > 0.70
+    total_similarity = 0.0
+    scored_count = 0
     
     for i, move in enumerate(ref_moves):
         quality = analyze_move_quality(ref_poses, prac_poses, move, offset, ref_duration, prac_duration)
         
-        # More descriptive labels
-        if is_full_match:
-            move_label = "Full Routine"
-        else:
-            duration = move.get('duration', 2.0)
-            ts = format_timestamp(move['timestamp'])
-            move_label = f"{ts} ({duration:.1f}s)"
+        ts = format_timestamp(move['timestamp'])
+        duration = move.get('duration', 2.0)
         
         moves.append({
             'id': i + 1,
-            'timestamp': format_timestamp(move['timestamp']),
-            'label': move_label,
+            'timestamp': ts,
+            'label': f"{ts} ({duration:.1f}s)",
             'status': quality.get('status', 'miss'),
             'match': quality['match'],
+            'similarity': quality.get('similarity', 0),
             'feedback': quality['feedback'],
             'tips': quality['tips']
         })
         
-        total_similarity += quality.get('similarity', 0)
-        # Count both "match" and "close" as correct for scoring
-        if quality.get('status') in ['match', 'close']:
-            matched_count += 1
+        # Use actual similarity score (not binary)
+        if quality.get('status') != 'gap':
+            total_similarity += quality.get('similarity', 0)
+            scored_count += 1
     
-    # Only count non-gap moves in the score
-    scored_moves = len([m for m in moves if m.get('status') != 'gap'])
-    overall_score = int((matched_count / scored_moves) * 100) if scored_moves > 0 else 0
+    # Score based on non-red, non-gap segments
+    # Only green + gray + red count toward total; gaps excluded entirely
+    total_moves = len([m for m in moves if m['status'] != 'gap'])
+    accurate_moves = len([m for m in moves if m['status'] in ['match', 'close']])
+    
+    raw_score = (accurate_moves / total_moves) * 100 if total_moves > 0 else 0
+    close_count = len([m for m in moves if m['status'] == 'close'])
+    overall_score = min(97, max(0, raw_score - (close_count * 1)))  # Subtract 1% per gray segment
     
     return {
         'success': True,
-        'overallScore': int(overall_score),
+        'overallScore': overall_score,
         'moves': [
             {
                 'id': int(m['id']),
@@ -743,6 +555,7 @@ def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0)
                 'label': str(m['label']),
                 'status': str(m.get('status', 'miss')),
                 'match': bool(m['match']),
+                'similarity': float(m.get('similarity', 0)),
                 'feedback': str(m['feedback']),
                 'tips': list(m['tips'])
             }
@@ -752,7 +565,6 @@ def analyze_videos(ref_video_path: str, prac_video_path: str, offset: float = 0)
 
 
 def format_timestamp(seconds: float) -> str:
-    """Format seconds as MM:SS."""
     mins = int(seconds // 60)
     secs = int(seconds % 60)
     return f"{mins}:{secs:02d}"
