@@ -60,7 +60,7 @@ The frontend runs at `http://localhost:5173` (or the port Vite shows).
 
 ---
 
-## Command Quick Reference
+## Command Quick Reference (Test)
 
 | Command | Run from folder |
 |--------|------------------|
