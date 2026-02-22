@@ -16,6 +16,19 @@ export default function VideoUploadCard({ title, file, onFileChange }) {
   return (
     <div className="upload-card">
       <label className="upload-card__label">{title}</label>
+      <div className="upload-card__hint" aria-hidden>
+        {title && title.toLowerCase().includes('practice') ? (
+          <>
+            Your practice clip — the recording you want to improve. Use this
+            upload for the performance you'd like feedback on.
+          </>
+        ) : (
+          <>
+            The example you're modeling or drawing inspiration from. Upload
+            the video you'd like to match or learn from.
+          </>
+        )}
+      </div>
       <input
         ref={inputRef}
         type="file"
