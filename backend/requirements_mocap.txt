@@ -1,0 +1,8 @@
+# Additional requirements for motion capture support
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Optional: For FBX file support (if needed later)
+# pyfbx>=0.1.0  # Note: May need manual installation
+
+# Note: Core dependencies (opencv-python, mediapipe, etc.) are in main requirements.txt

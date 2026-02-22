@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from audio_sync import compute_sync_offset
 from vision_engine import analyze_videos
+from mocap_reference import analyze_with_mocap_reference
 
 app = FastAPI()
 
@@ -113,3 +114,50 @@ async def analyze(body: AnalyzeRequest):
     
     result = analyze_videos(ref_abs, prac_abs, body.offset)
     return result
+
+
+class AnalyzeMocapRequest(BaseModel):
+    mocap_ref_path: str  # Path to motion capture reference file
+    prac_path: str
+    offset: float = 0.0
+    mocap_format: str | None = None  # Optional: 'cmu', 'aist', 'mixamo', etc.
+    mocap_fps: float = 30.0
+
+
+@app.post("/analyze-mocap")
+async def analyze_mocap(body: AnalyzeMocapRequest):
+    """
+    Analyze practice video against motion capture reference data.
+    
+    This uses pre-recorded motion capture data (from Mixamo, CMU, AIST++, etc.)
+    as the reference instead of extracting poses from a video. This provides
+    pristine, high-quality reference data for more accurate grading.
+    
+    Supported formats:
+    - CMU Graphics Lab Motion Capture Database (JSON)
+    - AIST++ Dance Motion Dataset (JSON)
+    - Cloud API outputs (DeepMotion, Move AI, RADiCAL JSON)
+    """
+    base = os.path.abspath(UPLOAD_DIR)
+    prac_abs = os.path.abspath(body.prac_path)
+    
+    # Mocap files can be outside uploads directory
+    mocap_abs = os.path.abspath(body.mocap_ref_path)
+    
+    if not prac_abs.startswith(base):
+        return {"success": False, "error": "Invalid practice video path"}
+    
+    if not os.path.exists(mocap_abs):
+        return {"success": False, "error": f"Motion capture file not found: {body.mocap_ref_path}"}
+    
+    try:
+        result = analyze_with_mocap_reference(
+            mocap_abs,
+            prac_abs,
+            offset=body.offset,
+            mocap_format=body.mocap_format,
+            mocap_fps=body.mocap_fps
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": f"Failed to analyze with mocap reference: {str(e)}"}
