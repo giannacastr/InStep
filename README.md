@@ -13,6 +13,13 @@ Before you begin, make sure you have these installed:
 | **Python** | 3.9+ | `python --version` or `python3 --version` |
 | **Node.js** | 18+ | `node --version` |
 | **npm** | (included with Node.js) | `npm --version` |
+| **ffmpeg** | (for audio sync) | `ffmpeg -version` |
+
+### Installing ffmpeg
+
+- **Mac:** `brew install ffmpeg`
+- **Windows:** Download from https://ffmpeg.org/download.html or use `winget install ffmpeg`
+- **Linux:** `sudo apt install ffmpeg` (Ubuntu/Debian) or `sudo yum install ffmpeg` (Fedora)
 
 ---
 
@@ -53,12 +60,23 @@ The frontend runs at `http://localhost:5173` (or the port Vite shows).
 
 ---
 
-## Command Quick Reference
+## Command Quick Reference (Test)
 
 | Command | Run from folder |
 |--------|------------------|
 | `pip install -r requirements.txt`, `uvicorn main:app --reload --host 127.0.0.1 --port 8000` | `backend/` |
 | `npm install`, `npm run dev` | `frontend/` |
+
+---
+
+## Optional: Vision Analysis (Pose Detection)
+
+For move-by-move pose detection (not required for basic audio sync):
+
+1. Download the **Pose Landmarker (Lite)** model from https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker
+2. Save it as `/tmp/pose_landmarker.task` (or the path configured in `vision_engine.py`)
+
+Without this model, the app will show demo analysis data.
 
 ---
 
