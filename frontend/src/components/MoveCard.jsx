@@ -14,20 +14,23 @@ export default function MoveCard({ move, darkBackground, onIgnore }) {
     setShowConfirmModal(false);
   };
 
+  const goodColor = '#1A7A5E';
+  const badColor = '#C0274A';
+
   return (
     <>
     <div
       style={{
-        border: `2px solid ${match ? 'var(--color-teal)' : 'var(--color-purple)'}`,
+        border: `2px solid ${match ? goodColor : badColor}`,
         borderRadius: '10px',
         padding: '11px 12px',
         marginBottom: '6px',
         textAlign: 'left',
-        backgroundColor: match ? 'rgba(68, 187, 164, 0.1)' : 'rgba(180, 126, 179, 0.1)',
+        backgroundColor: match ? 'rgba(26, 122, 94, 0.14)' : 'rgba(192, 39, 74, 0.14)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-        <strong style={{ color: match ? 'var(--color-teal)' : 'var(--color-purple)', fontSize: '13px' }}>{label}</strong>
+        <strong style={{ color: match ? goodColor : badColor, fontSize: '13px' }}>{label}</strong>
         <span style={{ fontSize: '10px', color: muteColor }}>{timestamp}</span>
       </div>
       {!match && feedback && (
@@ -43,7 +46,7 @@ export default function MoveCard({ move, darkBackground, onIgnore }) {
           </ul>
         </div>
       )}
-      {match && <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-teal)', fontWeight: 600 }}>✓ Matched</p>}
+      {match && <p style={{ margin: 0, fontSize: '12px', color: goodColor, fontWeight: 600 }}>✓ Matched</p>}
 
       {!match && (
         <div style={{ marginTop: '10px', position: 'relative' }}>
