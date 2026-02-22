@@ -126,19 +126,36 @@ export default function VideoComparisonView({ refPath, pracPath, sync, moves = [
     };
   }, [refUrl, pracUrl, useSync, syncOffset, sync?.ref_duration, sync?.prac_duration]);
 
-  // Sync scrubber and practice video when ref plays
+  // Sync practice video to match reference when scrubbing or seeking
+  const syncPracVideo = (refTime) => {
+    const pracV = pracVideoRef.current;
+    if (!pracV) return;
+    const pracT = refTime - syncOffset;
+    if (pracT >= 0 && pracT < (pracV.duration || Infinity)) {
+      // Only sync if difference is significant (> 0.1s) to avoid choppiness
+      if (Math.abs(pracV.currentTime - pracT) > 0.1) {
+        pracV.currentTime = pracT;
+      }
+    }
+  };
+
+  // Update current time from reference video during playback
   useEffect(() => {
     const refV = refVideoRef.current;
     const pracV = pracVideoRef.current;
-    if (!refV) return;
+    if (!refV || !pracV) return;
 
     const onTimeUpdate = () => {
       if (!isScrubbingRef.current) {
         const t = refV.currentTime;
         setCurrentTime(t);
-        if (pracV) {
-          const pracT = t - syncOffset;
-          if (pracT >= 0 && pracT < (pracV.duration || Infinity)) pracV.currentTime = pracT;
+        
+        // Sync practice video with offset - only seek if drift is noticeable (> 0.05s)
+        const pracT = t - syncOffset;
+        if (pracT >= 0 && pracT < (pracV.duration || Infinity)) {
+          if (Math.abs(pracV.currentTime - pracT) > 0.05) {
+            pracV.currentTime = pracT;
+          }
         }
       }
     };
@@ -182,8 +199,11 @@ export default function VideoComparisonView({ refPath, pracPath, sync, moves = [
     } else {
       refV.muted = false;
       pracV.muted = true;
+      // Pre-sync practice video to align with reference before playing
       const pracT = refV.currentTime - syncOffset;
-      if (pracT >= 0 && pracT < (pracV.duration || Infinity)) pracV.currentTime = pracT;
+      if (pracT >= 0 && pracT < (pracV.duration || Infinity)) {
+        pracV.currentTime = pracT;
+      }
       Promise.all([refV.play(), pracV.play()])
         .then(() => setIsPlaying(true))
         .catch(() => setIsPlaying(false));
