@@ -76,7 +76,7 @@ button:focus-visible {
 /* Scrubber with colored segment background - transparent track, visible thumb */
 .video-scrubber {
   position: relative;
-  height: 18px;
+  height: 14px;
   width: 100%;
   border: 1px solid rgba(237, 242, 253, 0.25);
   border-radius: 5px;
@@ -334,11 +334,11 @@ button:focus-visible {
 /* Upload card: thin white border, narrower width (mockup) */
 .upload-card {
   border: 1px solid rgba(237, 242, 253, 0.4);
-  border-radius: 12px;
-  padding: 24px 20px 24px;
-  min-width: 220px;
-  max-width: 280px;
-  background: rgba(10, 23, 31, 0.7);
+  border-radius: 14px;
+  padding: 28px 24px 28px;
+  min-width: 260px;
+  max-width: 340px;
+  background: rgba(10, 23, 31, 0.75);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -347,9 +347,9 @@ button:focus-visible {
 .upload-card__label {
   font-family: 'Michroma', sans-serif;
   color: var(--color-light);
-  font-size: 1rem;
-  font-weight: 400;
-  margin-bottom: 20px;
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin-bottom: 22px;
   display: block;
   text-align: center;
 }
@@ -371,10 +371,10 @@ button:focus-visible {
   background: var(--color-dark) !important;
   color: var(--color-light) !important;
   border: 1px solid rgba(237, 242, 253, 0.3) !important;
-  padding: 10px 24px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  border-radius: 6px;
+  padding: 12px 28px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
