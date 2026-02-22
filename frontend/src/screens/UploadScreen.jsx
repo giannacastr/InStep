@@ -69,13 +69,13 @@ export default function UploadScreen({ onAnalyze }) {
   };
 
   return (
-    <div className={`upload-page ${isSubmitting ? 'is-analyzing' : ''}`}>
+    <div className={`upload-page ${isSubmitting ? 'upload-page--loading' : ''}`}>
       <div className="upload-page__blur-wrap">
         <div className="upload-page__blur-circle-warm" aria-hidden />
         <div className="upload-page__blur-circle-cool" aria-hidden />
       </div>
       <h1 className="upload-page__title">InStep</h1>
-      <p className="upload-page__status">{status}</p>
+      <p className={`upload-page__status ${isSubmitting ? 'upload-page__status--front' : ''}`}>{status}</p>
 
       <div className="upload-page__cards">
         <VideoUploadCard

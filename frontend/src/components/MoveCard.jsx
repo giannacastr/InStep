@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 
 export default function MoveCard({ move, darkBackground, onIgnore }) {
-  const { timestamp, label, match, feedback, tips } = move;
+  const { timestamp, label, match, feedback, tips, status } = move;
   const [showTooltip, setShowTooltip] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const textColor = darkBackground ? 'rgba(237,242,253,0.85)' : 'var(--color-dark)';
   const muteColor = darkBackground ? 'rgba(237,242,253,0.5)' : 'var(--color-dark)';
+  const isGap = status === 'gap';
+  const isClose = status === 'close';
 
   const handleIgnoreClick = () => setShowConfirmModal(true);
   const handleConfirmNo = () => setShowConfirmModal(false);
@@ -48,7 +50,7 @@ export default function MoveCard({ move, darkBackground, onIgnore }) {
       )}
       {match && <p style={{ margin: 0, fontSize: '12px', color: goodColor, fontWeight: 600 }}>✓ Matched</p>}
 
-      {!match && (
+      {!match && !isGap && (
         <div style={{ marginTop: '10px', position: 'relative' }}>
           <button
             type="button"
