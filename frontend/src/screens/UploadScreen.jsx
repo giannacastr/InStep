@@ -69,7 +69,7 @@ export default function UploadScreen({ onAnalyze }) {
   };
 
   return (
-    <div className="upload-page">
+    <div className={`upload-page ${isSubmitting ? 'is-analyzing' : ''}`}>
       <div className="upload-page__blur-wrap">
         <div className="upload-page__blur-circle-warm" aria-hidden />
         <div className="upload-page__blur-circle-cool" aria-hidden />
