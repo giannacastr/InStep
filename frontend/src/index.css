@@ -331,12 +331,14 @@ button:focus-visible {
   cursor: not-allowed;
 }
 /* Loading cursor when submitting */
-.upload-page--loading {
-  cursor: default;
-}
-.upload-page--loading > * {
+.upload-page--loading > *:not(.upload-page__status--front) {
   filter: blur(4px);
   pointer-events: none;
+}
+.upload-page__status--front {
+  position: relative;
+  z-index: 9998;
+  filter: none !important;
 }
 .upload-page--loading::after {
   content: '';
