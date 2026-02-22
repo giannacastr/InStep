@@ -43,10 +43,12 @@ function buildSegments(moves, duration, ignoredMoveIds = new Set()) {
   return segments;
 }
 
-export default function VideoComparisonView({ refPath, pracPath, moves = [], overallScore }) {
+export default function VideoComparisonView({ refPath, pracPath, sync, moves = [], overallScore }) {
   const refVideoRef = useRef(null);
   const pracVideoRef = useRef(null);
   const [duration, setDuration] = useState(0);
+  const [refDuration, setRefDuration] = useState(0);
+  const [pracDuration, setPracDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -54,6 +56,9 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
   const [ignoredMoveIds, setIgnoredMoveIds] = useState(() => new Set());
   const isScrubbingRef = useRef(false);
   const scrubTimeoutRef = useRef(null);
+
+  const syncOffset = sync?.success ? (sync.offset ?? 0) : 0;
+  const useSync = sync?.success && syncOffset !== undefined;
 
   const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1];
 
@@ -85,15 +90,24 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
     return null;
   }, [segments, currentTime]);
 
-  // Determine duration from both videos (use max for full scrub range)
+  const pracDisplayTime = currentTime - syncOffset;
+  const refInRange = refDuration <= 0 || (currentTime >= 0 && currentTime < refDuration);
+  const pracInRange = pracDuration <= 0 || (pracDisplayTime >= 0 && pracDisplayTime < pracDuration);
+
+  // Determine duration from both videos; with sync use full timeline span
   useEffect(() => {
     if (!refVideoRef.current || !pracVideoRef.current) return;
 
     const updateDuration = () => {
-      const refD = refVideoRef.current?.duration ?? 0;
-      const pracD = pracVideoRef.current?.duration ?? 0;
+      const refD = refVideoRef.current?.duration ?? sync?.ref_duration ?? 0;
+      const pracD = pracVideoRef.current?.duration ?? sync?.prac_duration ?? 0;
       if (refD > 0 || pracD > 0) {
-        setDuration(Math.max(refD, pracD));
+        setRefDuration(refD);
+        setPracDuration(pracD);
+        const displayDuration = useSync
+          ? Math.max(refD, syncOffset + pracD)
+          : Math.max(refD, pracD);
+        setDuration(displayDuration);
         setIsReady(true);
       }
     };
@@ -109,28 +123,40 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
       refV.removeEventListener('loadedmetadata', updateDuration);
       pracV.removeEventListener('loadedmetadata', updateDuration);
     };
-  }, [refUrl, pracUrl]);
+  }, [refUrl, pracUrl, useSync, syncOffset, sync?.ref_duration, sync?.prac_duration]);
 
-  // Sync scrubber when video plays
+  // Sync scrubber and practice video when ref plays
   useEffect(() => {
     const refV = refVideoRef.current;
+    const pracV = pracVideoRef.current;
     if (!refV) return;
 
     const onTimeUpdate = () => {
-      if (!isScrubbingRef.current) setCurrentTime(refV.currentTime);
+      if (!isScrubbingRef.current) {
+        const t = refV.currentTime;
+        setCurrentTime(t);
+        if (pracV) {
+          const pracT = t - syncOffset;
+          if (pracT >= 0 && pracT < (pracV.duration || Infinity)) pracV.currentTime = pracT;
+        }
+      }
     };
     refV.addEventListener('timeupdate', onTimeUpdate);
     return () => refV.removeEventListener('timeupdate', onTimeUpdate);
-  }, [refUrl, pracUrl]);
+  }, [refUrl, pracUrl, syncOffset]);
 
   const handleScrubberChange = (e) => {
     const t = parseFloat(e.target.value);
     if (scrubTimeoutRef.current) clearTimeout(scrubTimeoutRef.current);
     isScrubbingRef.current = true;
     setCurrentTime(t);
-    if (refVideoRef.current) refVideoRef.current.currentTime = t;
-    if (pracVideoRef.current)
-      pracVideoRef.current.currentTime = Math.min(t, pracVideoRef.current.duration || t);
+    if (refVideoRef.current && t < (refVideoRef.current.duration || Infinity))
+      refVideoRef.current.currentTime = t;
+    if (pracVideoRef.current) {
+      const pracT = t - syncOffset;
+      if (pracT >= 0 && pracT < (pracVideoRef.current.duration || Infinity))
+        pracVideoRef.current.currentTime = pracT;
+    }
     scrubTimeoutRef.current = setTimeout(() => {
       isScrubbingRef.current = false;
       scrubTimeoutRef.current = null;
@@ -155,6 +181,8 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
     } else {
       refV.muted = false;
       pracV.muted = true;
+      const pracT = refV.currentTime - syncOffset;
+      if (pracT >= 0 && pracT < (pracV.duration || Infinity)) pracV.currentTime = pracT;
       Promise.all([refV.play(), pracV.play()])
         .then(() => setIsPlaying(true))
         .catch(() => setIsPlaying(false));
@@ -210,30 +238,32 @@ export default function VideoComparisonView({ refPath, pracPath, moves = [], ove
             <div style={{ padding: '7px 14px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(237,242,253,0.38)', borderBottom: '1px solid rgba(237,242,253,0.04)' }}>
               Reference
             </div>
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', background: '#000' }}>
               <video
                 ref={refVideoRef}
                 src={refUrl}
-                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#050d12', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', opacity: refInRange ? 1 : 0 }}
                 muted
                 playsInline
                 crossOrigin="anonymous"
               />
+              {!refInRange && <div style={{ position: 'absolute', inset: 0, background: '#000', zIndex: 1 }} aria-hidden />}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', background: '#050d12', minHeight: 0 }}>
             <div style={{ padding: '7px 14px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'rgba(237,242,253,0.38)', borderBottom: '1px solid rgba(237,242,253,0.04)' }}>
               Your Practice
             </div>
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', background: '#000' }}>
               <video
                 ref={pracVideoRef}
                 src={pracUrl}
-                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#050d12', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', opacity: pracInRange ? 1 : 0 }}
                 muted
                 playsInline
                 crossOrigin="anonymous"
               />
+              {!pracInRange && <div style={{ position: 'absolute', inset: 0, background: '#000', zIndex: 1 }} aria-hidden />}
             </div>
           </div>
         </div>

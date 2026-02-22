@@ -26,14 +26,23 @@ export default function UploadScreen({ onAnalyze }) {
       });
       const data = await response.json();
       setStatus(data.message || "Upload complete.");
-      if (data.status === "Success" && data.ref_path && data.prac_path && onAnalyze) {
-        onAnalyze(data);
-      } else if (data.ref_path && data.prac_path && onAnalyze) {
-        onAnalyze(data);
-      } else if (!response.ok) {
-        setStatus("Upload failed. Please try again.");
+      if (!data.ref_path || !data.prac_path) {
+        if (!response.ok) setStatus("Upload failed. Please try again.");
+        return;
       }
-    } catch (error) {
+      setStatus("Syncing videos by audio...");
+      try {
+        const syncRes = await fetch('http://127.0.0.1:8000/compute-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ref_path: data.ref_path, prac_path: data.prac_path }),
+        });
+        const syncData = await syncRes.json();
+        if (onAnalyze) onAnalyze({ ...data, sync: syncData });
+      } catch {
+        if (onAnalyze) onAnalyze({ ...data, sync: { success: false, offset: 0 } });
+      }
+    } catch {
       setStatus("Error connecting to InStep backend.");
     } finally {
       setIsSubmitting(false);
@@ -68,7 +77,7 @@ export default function UploadScreen({ onAnalyze }) {
         disabled={!refFile || !pracFile || isSubmitting}
         className="cta-button upload-page__analyze"
       >
-        {isSubmitting ? "Uploading…" : "Analyze"}
+        {isSubmitting ? "Uploading & syncing…" : "Analyze"}
       </button>
     </div>
   );

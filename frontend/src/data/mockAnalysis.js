@@ -6,6 +6,7 @@ export const mockAnalysis = {
   status: "success",
   ref_path: "uploads/reference/sample.mp4",
   prac_path: "uploads/practice/sample.mp4",
+  sync: { success: false, offset: 0 },
   analysis: {
     overallScore: 78,
     moves: [

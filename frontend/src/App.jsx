@@ -16,6 +16,7 @@ function App() {
       setUploadResult({
         ref_path: mockAnalysis.ref_path,
         prac_path: mockAnalysis.prac_path,
+        sync: mockAnalysis.sync ?? { success: false, offset: 0 },
         analysis: mockAnalysis.analysis,
       });
       setCurrentScreen('results');

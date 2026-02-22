@@ -23,6 +23,7 @@ export default function ResultsScreen({ data, onTryAgain }) {
           <VideoComparisonView
             refPath={data.ref_path}
             pracPath={data.prac_path}
+            sync={data.sync}
             moves={moves}
             overallScore={overallScore}
           />
