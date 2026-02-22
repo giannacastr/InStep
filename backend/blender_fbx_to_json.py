@@ -91,7 +91,7 @@ def get_bone_world_head(arm_obj, bone_name):
     return [x, y, z]
 
 def collect_frame_joints(arm_obj, frame_num):
-    """Collect all canonical joint positions for the current frame."""
+    """Collect all canonical joint positions for current frame."""
     bpy.context.scene.frame_set(frame_num)
     joints = {}
     for bone in arm_obj.pose.bones:
