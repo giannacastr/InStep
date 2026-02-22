@@ -13,10 +13,11 @@ export default function ResultsScreen({ data, onTryAgain }) {
         <div className="results-page__blob-teal" />
         <div className="results-page__blob-purple" />
       </div>
-      <div className="results-page__logo">InStep</div>
+      <div className="results-page__scroll">
+        <div className="results-page__logo">InStep</div>
 
-      <div className="results-page__inner">
-        <p className="results-page__subtitle">Move-by-move analysis</p>
+        <div className="results-page__inner">
+        <p className="results-page__subtitle">Move-by-Move Analysis</p>
 
         {data?.ref_path && data?.prac_path && (
           <VideoComparisonView
@@ -34,6 +35,7 @@ export default function ResultsScreen({ data, onTryAgain }) {
             </button>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
