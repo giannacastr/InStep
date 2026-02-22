@@ -45,8 +45,8 @@ async def upload_comparison(ref_file: UploadFile = File(...), prac_file: UploadF
     return {
         "status": "Success",
         "message": "Both videos received for InStep analysis!",
-        "ref_path": ref_path,
-        "prac_path": prac_path
+        "ref_path": ref_path.replace("\\", "/"),
+        "prac_path": prac_path.replace("\\", "/"),
     }
 
 
