@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
 
-export default function MoveCard({ move, darkBackground }) {
+export default function MoveCard({ move, darkBackground, onIgnore }) {
   const { timestamp, label, match, feedback, tips } = move;
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const textColor = darkBackground ? 'rgba(237,242,253,0.85)' : 'var(--color-dark)';
   const muteColor = darkBackground ? 'rgba(237,242,253,0.5)' : 'var(--color-dark)';
+
+  const handleIgnoreClick = () => setShowConfirmModal(true);
+  const handleConfirmNo = () => setShowConfirmModal(false);
+  const handleConfirmYes = () => {
+    onIgnore?.(move);
+    setShowConfirmModal(false);
+  };
 
   return (
     <>
@@ -35,6 +44,50 @@ export default function MoveCard({ move, darkBackground }) {
         </div>
       )}
       {match && <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-teal)', fontWeight: 600 }}>✓ Matched</p>}
+
+      {!match && (
+        <div style={{ marginTop: '10px', position: 'relative' }}>
+          <button
+            type="button"
+            onClick={handleIgnoreClick}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            title="You like how you did this move better."
+            style={{
+              padding: 0,
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              fontSize: '10px',
+              color: muteColor,
+              opacity: 0.8,
+              textDecoration: 'underline',
+            }}
+          >
+            Ignore suggestion
+          </button>
+          {showTooltip && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '100%',
+                left: 0,
+                marginBottom: '4px',
+                padding: '6px 10px',
+                fontSize: '10px',
+                color: 'var(--color-light)',
+                backgroundColor: 'var(--color-dark)',
+                borderRadius: '6px',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                zIndex: 10,
+              }}
+            >
+              You like how you did this move better.
+            </div>
+          )}
+        </div>
+      )}
     </div>
 
       {/* Ignore confirmation modal */}
