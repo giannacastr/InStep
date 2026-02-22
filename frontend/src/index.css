@@ -441,40 +441,41 @@ button:focus-visible {
   box-sizing: border-box;
 }
 .results-page__subtitle {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Khand', sans-serif;
   text-align: center;
   color: var(--color-light);
-  opacity: 0.7;
+  opacity: 0.9;
   margin: 0 0 20px 0;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
 }
 .results-page .video-comparison-layout {
   width: 100%;
   min-width: 0;
   background: transparent;
-  border: 1px solid rgba(237, 242, 253, 0.07);
-  border-radius: 14px;
-  overflow: hidden;
+  border: none;
+  gap: 18px;
   flex-wrap: wrap;
 }
 .results-page .video-comparison-main {
   background: #050d12;
   min-width: 0;
+  border: 1px solid rgba(237, 242, 253, 0.07);
+  border-radius: 14px;
+  overflow: hidden;
 }
 .results-page .video-comparison-feedback {
-  background: rgba(7, 16, 22, 0.78);
+  background: rgba(7, 16, 22, 0.95);
   backdrop-filter: blur(24px);
-  border-left: 1px solid rgba(237, 242, 253, 0.07);
-  border-radius: 0 14px 14px 0;
+  border: 1px solid rgba(237, 242, 253, 0.07);
+  border-radius: 14px;
+  overflow: hidden;
   color: var(--color-light);
 }
 @media (max-width: 900px) {
   .results-page .video-comparison-feedback {
     width: 100% !important;
     min-width: 100%;
-    border-left: none;
-    border-top: 1px solid rgba(237, 242, 253, 0.07);
-    border-radius: 0 0 14px 14px;
+    border-radius: 14px;
   }
   .results-page .video-comparison-main {
     min-width: 100%;
