@@ -23,7 +23,6 @@ Before you begin, make sure you have these installed:
 
 ---
 
-
 ## Quick Start
 
 ### 1. Backend (FastAPI)
@@ -39,6 +38,28 @@ Activate the virtual environment:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Download the MediaPipe pose detection model (required — do this once):
+
+**Mac/Linux:**
+```bash
+curl -L "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task" -o /tmp/pose_landmarker.task
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task" -OutFile "$env:TEMP\pose_landmarker.task"
+```
+
+> **Windows note:** `vision_engine.py` uses `/tmp/pose_landmarker.task` by default. On Windows, update `MODEL_PATH` in `vision_engine.py` to:
+> ```python
+> MODEL_PATH = os.path.join(os.environ.get('TEMP', '/tmp'), 'pose_landmarker.task')
+> ```
+
+Then start the backend:
+
+```bash
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -60,23 +81,15 @@ The frontend runs at `http://localhost:5173` (or the port Vite shows).
 
 ---
 
-## Command Quick Reference (Test)
+## Command Quick Reference
 
-| Command | Run from folder |
-|--------|------------------|
-| `pip install -r requirements.txt`, `uvicorn main:app --reload --host 127.0.0.1 --port 8000` | `backend/` |
-| `npm install`, `npm run dev` | `frontend/` |
-
----
-
-## Optional: Vision Analysis (Pose Detection)
-
-For move-by-move pose detection (not required for basic audio sync):
-
-1. Download the **Pose Landmarker (Lite)** model from https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker
-2. Save it as `/tmp/pose_landmarker.task` (or the path configured in `vision_engine.py`)
-
-Without this model, the app will show demo analysis data.
+| Step | Command | Run from |
+|------|---------|----------|
+| Install backend deps | `pip install -r requirements.txt` | `backend/` |
+| Download model (Mac/Linux) | `curl -L "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task" -o /tmp/pose_landmarker.task` | anywhere |
+| Start backend | `uvicorn main:app --reload --host 127.0.0.1 --port 8000` | `backend/` |
+| Install frontend deps | `npm install` | `frontend/` |
+| Start frontend | `npm run dev` | `frontend/` |
 
 ---
 
@@ -86,7 +99,7 @@ Without this model, the app will show demo analysis data.
 2. Upload a **Reference Video** (the dance you want to match).
 3. Upload **Your Practice** video.
 4. Click **Analyze Move-by-Move**.
-5. Review the results (analysis coming soon).
+5. Review the move-by-move breakdown, color-coded feedback, and score.
 
 ---
 
@@ -95,7 +108,9 @@ Without this model, the app will show demo analysis data.
 ```
 InStep/
 ├── backend/
-│   ├── main.py           # FastAPI app, upload endpoints
+│   ├── main.py           # FastAPI app, upload & analysis endpoints
+│   ├── vision_engine.py  # MediaPipe pose detection & grading logic
+│   ├── audio_sync.py     # Audio-based video sync
 │   ├── requirements.txt
 │   └── uploads/          # Saved videos (gitignored)
 │       ├── reference/
@@ -104,6 +119,7 @@ InStep/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── screens/
+│   │   ├── data/
 │   │   ├── App.jsx
 │   │   └── main.jsx
 │   └── package.json
@@ -119,10 +135,11 @@ InStep/
 3. Use `pip install -r requirements.txt` for a clean install.
 4. Don't commit `venv/`, `node_modules/`, or `.env` files.
 5. Large video files in `backend/uploads/` are gitignored.
+6. The MediaPipe model at `/tmp/pose_landmarker.task` is not committed — each machine must download it manually using the steps above.
 
 ---
 
 ## Tech Stack
 
-- **Backend:** Python, FastAPI, Uvicorn
+- **Backend:** Python, FastAPI, Uvicorn, MediaPipe, OpenCV
 - **Frontend:** React 19, Vite, React Router
