@@ -10,7 +10,7 @@
   --color-teal: #44bba4;
   --color-gold: #e7bb41;
 
-  color: #0a171f;
+  color: #edf2fd;
   background-color: #0a171f;
 
   font-synthesis: none;
@@ -30,6 +30,7 @@ a:hover {
 
 body {
   margin: 0;
+  background-color: #0a171f;
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
@@ -184,6 +185,7 @@ button:focus-visible {
 .upload-page {
   position: fixed;
   inset: 0;
+  margin: -2rem;
   background: #0a171f;
   display: flex;
   flex-direction: column;
@@ -382,6 +384,12 @@ button:focus-visible {
   box-shadow: 0 18px 36px rgba(68,187,164,0.12), 0 4px 12px rgba(180,126,179,0.06);
   border-color: rgba(68,187,164,0.65);
 }
+/* Disable hover effects when analyzing */
+.upload-page.is-analyzing .upload-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(237, 242, 253, 0.4);
+}
 
 /* Hint that appears on hover under the label */
 .upload-card__hint {
@@ -530,7 +538,7 @@ button:focus-visible {
 }
 .results-page .results-page__logo {
   position: absolute;
-  top: 18px;
+  top: 40px;
   right: 0;
   padding-right: 28px;
   z-index: 10;
@@ -549,7 +557,7 @@ button:focus-visible {
   width: 100%;
   max-width: min(1000px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: clamp(72px, 12vh, 100px) clamp(12px, 2.5vw, 20px) 100px;
+  padding: clamp(120px, 18vh, 150px) clamp(12px, 2.5vw, 20px) 100px;
   position: relative;
   z-index: 1;
   box-sizing: border-box;
@@ -561,7 +569,7 @@ button:focus-visible {
   color: var(--color-light);
   opacity: 0.95;
   margin: 0 0 20px 0;
-  font-size: 1.35rem;
+  font-size: 1.65rem;
 }
 .results-page .video-comparison-layout {
   width: 100%;
@@ -605,16 +613,16 @@ button:focus-visible {
     padding-right: 16px;
   }
 }
-/* Upload New Videos button: match Analyze (hover, size) but Michroma font */
+/* Upload New Videos button: match Analyze (hover, size) and Khand font */
 .results-page .results-page__upload-btn {
-  font-family: 'Michroma', sans-serif !important;
+  font-family: 'Khand', sans-serif !important;
   background: #ad64bf !important;
   color: var(--color-light) !important;
   border-color: #ad64bf !important;
   min-width: 127px;
   height: 44px;
   padding: 0 20px;
-  font-size: 0.8rem;
+  font-size: 1.15rem;
   font-weight: 400;
   border-radius: 8px;
   display: inline-flex;
@@ -648,9 +656,6 @@ button:focus-visible {
   inset: 0;
   margin: -2rem;
   background: #0a171f;
-  background-image:
-    linear-gradient(90deg, rgba(68, 187, 164, 0.08) 0%, transparent 50%),
-    linear-gradient(90deg, transparent 50%, rgba(231, 187, 65, 0.08) 100%);
   display: flex;
   flex-direction: column;
   align-items: center;

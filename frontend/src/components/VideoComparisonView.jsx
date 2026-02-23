@@ -261,6 +261,8 @@ export default function VideoComparisonView({ refPath, pracPath, sync, moves = [
             background: '#050d12',
             aspectRatio: '1',
             minHeight: 180,
+            borderRadius: '14px',
+            overflow: 'hidden',
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(237,242,253,0.05)', background: '#050d12', minHeight: 0 }}>
